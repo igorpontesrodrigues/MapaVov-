@@ -20,8 +20,8 @@
         .control-panel { z-index: 2000; }
         input[type="range"] { accent-color: #4f46e5; }
         
-        /* Ajuste de Rotação apenas para elementos visuais, não para o container inteiro no modo projeto */
-        .leaflet-map-pane { transition: transform 0.5s ease-out; }
+        /* Ajuste de Rotação apenas para elementos visuais */
+        .leaflet-map-pane { transition: transform 0.3s ease-out; }
         
         /* Marcadores */
         .custom-pin {
@@ -63,17 +63,18 @@
             background: transparent;
             white-space: nowrap;
         }
-        .lot-number { font-size: 10px; font-weight: 900; color: #000; }
+        .lot-number { font-size: 9px; font-weight: 900; color: #000; }
         .lot-measure { font-size: 7px; color: #475569; font-family: monospace; }
         .street-name { 
-            font-size: 11px; 
-            font-weight: 800; 
-            color: #000; 
+            font-size: 12px; 
+            font-weight: 900; 
+            color: #0f172a; 
             text-transform: uppercase; 
-            background: rgba(255,255,255,0.8); 
-            padding: 2px 8px; 
-            border: 1px solid #000;
+            background: transparent; /* Fundo transparente conforme pedido */
+            padding: 0;
             white-space: nowrap;
+            display: inline-block;
+            text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; /* Contorno branco sutil para leitura */
         }
 
         /* Selo de Engenharia */
@@ -91,24 +92,23 @@
         }
         .project-mode #eng-stamp { display: block; }
 
-        /* MODO DE IMPRESSÃO */
+        /* MODO DE IMPRESSÃO A4 */
         @media print {
-            @page { size: landscape; margin: 0; }
-            body, html { width: 100%; height: 100%; overflow: hidden; background: white; }
+            @page { size: A4 landscape; margin: 0mm; }
+            body, html { width: 100%; height: 100%; overflow: hidden; background: white; margin: 0; padding: 0; }
             .control-panel { display: none !important; }
-            #main-container { width: 100vw; height: 100vh; display: block; }
+            #main-container { width: 100%; height: 100%; display: block; }
             #viewport { 
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
                 background: white !important; z-index: 9999;
             }
             #map { width: 100%; height: 100%; background: white !important; }
             
-            /* Forçar visibilidade do selo na impressão */
             #eng-stamp { 
                 display: block !important; 
                 position: fixed; 
-                bottom: 20px; 
-                right: 20px; 
+                bottom: 15mm; 
+                right: 15mm; 
                 border: 2px solid black;
                 box-shadow: none;
             }
@@ -135,7 +135,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
-                        Imprimir Planta PDF
+                        Imprimir Planta PDF (A4)
                     </button>
                 </div>
 
@@ -279,15 +279,16 @@
         document.getElementById('view-project').onclick = () => switchMode(true);
         
         document.getElementById('printBtn').onclick = () => {
-            // Força modo projeto se não estiver
+            // Garante que estamos no modo projeto
             if (!isProjectMode) switchMode(true);
             
-            // Aguarda renderização completa
+            // Força o ajuste do zoom para caber tudo na tela/papel
             setTimeout(() => {
-                fitProjectBounds(); // Garante o enquadramento antes de imprimir
+                fitProjectBounds(); 
+                // Pequeno delay extra para renderização antes de abrir o diálogo
                 setTimeout(() => {
                     window.print();
-                }, 500);
+                }, 600);
             }, 300);
         };
 
@@ -344,7 +345,7 @@
             const gridBounds = calculateGridBounds();
             if (gridBounds) {
                 // padding: [50, 50] garante margem branca para não cortar na impressão
-                map.fitBounds(gridBounds, { padding: [80, 80], animate: false });
+                map.fitBounds(gridBounds, { padding: [50, 50], animate: false });
             }
         }
 
@@ -358,19 +359,19 @@
             const sw = 10;
             const nB = 4;
             const tw = 10 * pw;
-            const th_total = (nB * (pd * 2)) + ((nB - 1) * sw);
+            // Altura total ajustada: (4 blocos * 50m) + (5 ruas de 10m) = 200 + 50 = 250m de altura do grid principal
+            const th_total = (nB * (pd * 2)) + ((nB + 1) * sw);
             
-            // Margens das ruas externas (Lado esquerdo 10m, direito 20m, fundo 10m)
+            // Margens das ruas externas (Lado esquerdo 10m, direito 20m)
             const sideL = 10;
             const sideR = 20;
-            const back = 10;
             
             // 4 Cantos do projeto completo
             const points = [
                 {x: -sideL, y: 0},                 // Topo Esquerda
                 {x: tw + sideR, y: 0},             // Topo Direita
-                {x: tw + sideR, y: th_total + back}, // Fundo Direita
-                {x: -sideL, y: th_total + back}      // Fundo Esquerda
+                {x: tw + sideR, y: th_total},      // Fundo Direita
+                {x: -sideL, y: th_total}           // Fundo Esquerda
             ];
             
             const latLngs = points.map(p => {
@@ -399,34 +400,40 @@
             const lPS = 10;
             
             const tw = lPS * pw;
-            const th_calc = (nB * (pd * 2)) + ((nB - 1) * sw);
+            // Altura total do loteamento (Ruas horizontais + Blocos)
+            // 5 Ruas Horizontais (10m) + 4 Blocos (50m cada)
+            const th_calc = (nB * (pd * 2)) + ((nB + 1) * sw);
 
             if (isProjectMode) {
-                // Rua Limite (Esq - 10m)
+                // Rua Limite (Lateral Esquerda - 10m)
+                // Vai do topo (y=0) até o fim (y=th_calc)
                 drawPoly([{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th_calc}, {x: -sideStreetL, y: th_calc}], '#f1f5f9', '#000', 1, 1);
-                addTechLabel("RUA DE LIMITE (10m)", {x: -sideStreetL/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
+                addTechLabel("RUA DE FUNDO (10m)", {x: -sideStreetL/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
 
-                // Av Principal (Dir - 20m)
+                // Avenida Principal (Lateral Direita - 20m)
                 drawPoly([{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th_calc}, {x: tw, y: th_calc}], '#e2e8f0', '#000', 1, 1);
                 addTechLabel("AVENIDA PRINCIPAL (20m)", {x: tw + sideStreetR/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
+            }
 
-                // Fundo (10m)
-                drawPoly([{x: -sideStreetL, y: th_calc}, {x: tw + sideStreetR, y: th_calc}, {x: tw + sideStreetR, y: th_calc + 10}, {x: -sideStreetL, y: th_calc + 10}], '#f1f5f9', '#000', 1, 1);
-                addTechLabel("VIA DE FUNDO (10m)", {x: tw/2, y: th_calc + 5}, rot, pos, scale, 'street-name', false);
+            // Desenhar as 5 Ruas Horizontais
+            // i=0 (Topo), i=1, i=2, i=3, i=4 (Fundo)
+            for (let i = 0; i <= nB; i++) {
+                if (isProjectMode) {
+                    let ry = i * (pd * 2 + sw);
+                    drawPoly([{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}], '#f8fafc', '#94a3b8', 0.5, 1);
+                    addTechLabel("RUA " + (i + 1) + " (10m)", {x: tw/2, y: ry + sw/2}, rot, pos, scale, 'street-name', false);
+                }
             }
 
             let lotCounter = 1;
+            // Desenhar os 4 Blocos
             for (let b = 0; b < nB; b++) {
-                if (b < nB - 1 && isProjectMode) {
-                    let ry = (b + 1) * (pd * 2) + b * sw;
-                    drawPoly([{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}], '#f8fafc', '#94a3b8', 0.5, 1);
-                    addTechLabel("RUA " + (b + 1) + " (10m)", {x: tw/2, y: ry + sw/2}, rot, pos, scale, 'street-name', false);
-                }
-
                 for (let s = 0; s < 2; s++) { 
                     for (let l = 0; l < lPS; l++) {
                         let ox = l * pw;
-                        let oy = (b * (pd * 2 + sw)) + (s * pd);
+                        // Y do lote = Rua Acima + Blocos Anteriores + Fileira Atual
+                        // b * (bloco + rua) + primeira rua + fileira
+                        let oy = (b * (pd * 2 + sw)) + sw + (s * pd);
                         
                         const color = isProjectMode ? '#fff' : '#818cf8';
                         const stroke = isProjectMode ? '#000' : '#4f46e5';
@@ -443,7 +450,7 @@
                 }
             }
 
-            const areaTotal = (tw * th_calc) + (isProjectMode ? (sideStreetL + sideStreetR) * th_calc + (tw + sideStreetL + sideStreetR) * 10 : 0);
+            const areaTotal = (tw * th_calc) + (isProjectMode ? (sideStreetL + sideStreetR) * th_calc : 0);
             document.getElementById('total-project-area').innerText = areaTotal.toLocaleString('pt-BR') + " m²";
             
             // Helper para desenhar polígonos
@@ -458,7 +465,6 @@
         function addTechLabel(text, offset, angle, anchor, scale, className, isVertical = false) {
             const pw = parseFloat(el.plotWidth.value);
             const tw = 10 * pw;
-            // Centro de rotação precisa ser consistente com o drawGrid
             const th_center_calc = (4 * parseFloat(el.plotDepth.value) * 2 + 30); 
             
             const pt = rotatePoint(offset.x, offset.y, tw, th_center_calc, angle, anchor, scale);
@@ -473,7 +479,6 @@
         }
 
         function rotatePoint(x, y, tw, th, angle, anchor, scale) {
-            // Rotacionar em torno do centro do bloco principal para manter alinhamento
             const rx = x - tw / 2;
             const ry = y - th / 2;
             const nx = rx * Math.cos(angle) - ry * Math.sin(angle);
@@ -482,7 +487,7 @@
         }
 
         function updateMapRotation() {
-            if (isProjectMode) return; // Não rotacionar via CSS no modo projeto
+            if (isProjectMode) return; 
             const d = el.mapRotation.value;
             document.getElementById('map').style.transform = `rotate(${d}deg)`;
             document.documentElement.style.setProperty('--map-rot', d);
@@ -508,12 +513,7 @@
         
         map.on('click', (e) => {
             if (!drawingArea) return;
-            // Correção de clique (apenas no modo satélite onde tem rotação CSS)
             let latlng = e.latlng;
-            if (!isProjectMode && parseFloat(el.mapRotation.value) !== 0) {
-                // Lógica de des-rotação simplificada para este exemplo, assumindo clique direto
-            }
-            
             const m = L.marker(latlng, { draggable: !isProjectMode, icon: L.divIcon({ className: drawingArea.markers.length===0?'custom-pin pin-start':'custom-pin', html: '•' }) }).addTo(pinsLayer);
             if (drawingArea.markers.length === 0) m.on('click', finishArea);
             drawingArea.markers.push(m);
