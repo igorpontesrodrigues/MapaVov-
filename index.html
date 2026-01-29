@@ -1,523 +1,359 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Plan - Loteamento Profissional</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Planta de Loteamento - 80 Lotes</title>
     <style>
-        body { background-color: #0f172a; overflow: hidden; }
-        #viewport { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #f1f5f9; }
-        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
-        
-        /* Estilo do Modo Projeto (Planta Técnica) */
-        .project-mode #map { background: #ffffff !important; }
-        .project-mode .leaflet-tile-pane { display: none; } /* Esconde satélite */
-        .project-mode .leaflet-container { background: #fff !important; }
-        .project-mode .leaflet-control-container { display: none !important; } /* Esconde zoom controls */
-        
-        .control-panel { z-index: 2000; }
-        input[type="range"] { accent-color: #4f46e5; }
-        
-        /* Ajuste de Rotação apenas para elementos visuais */
-        .leaflet-map-pane { transition: transform 0.3s ease-out; }
-        
-        /* Marcadores */
-        .custom-pin {
-            background: #ef4444;
-            border: 2px solid white;
-            border-radius: 50%;
+        :root {
+            --scale-factor: 3.5px; /* Define a escala base: 1 metro = 3.5 pixels */
+            --street-color: #f0f0f0;
+            --lot-border: #333;
+            --highlight-color: #e3f2fd;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- UI Controls (Not printed) --- */
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        button {
+            background-color: #2c3e50;
             color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
             font-weight: bold;
-            font-size: 10px;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+
+        .instructions {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* --- Main Map Container --- */
+        .map-container {
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+            /* Dimensions calculation: 
+               Width = 5 streets (10m each) + 4 blocks (50m each) = 50 + 200 = 250m width
+               Height = Top street (10m) + Block length (100m) + Bottom Ave (20m) = 130m height 
+            */
+            display: inline-block;
+        }
+
+        .header-info {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+        .subtitle { color: #555; }
+
+        /* --- The Grid Layout --- */
+        .subdivision-layout {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Horizontal Streets (Top and Bottom) */
+        .road-horizontal {
+            width: 100%;
+            background-color: var(--street-color);
+            border: 1px dashed #ccc;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            cursor: move;
-        }
-        .pin-start { background: #22c55e !important; animation: pulse 1.5s infinite; }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-        }
-        
-        .area-label {
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #1e293b;
-            border-radius: 4px;
-            padding: 2px 6px;
             font-weight: bold;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 12px;
+        }
+
+        .road-top {
+            height: calc(10 * var(--scale-factor)); /* 10m */
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+
+        .road-bottom {
+            height: calc(20 * var(--scale-factor)); /* 20m Avenue */
+            margin-top: 0;
+            border-top: none;
+            background-color: #e8e8e8; /* Slightly darker to distinguish avenue */
+            font-size: 14px;
+        }
+
+        /* The Main Body (Vertical Streets + Blocks) */
+        .blocks-row {
+            display: flex;
+            flex-direction: row;
+        }
+
+        /* Vertical Streets (10m) */
+        .road-vertical {
+            width: calc(10 * var(--scale-factor)); /* 10m width */
+            background-color: var(--street-color);
+            border-left: 1px dashed #ccc;
+            border-right: 1px dashed #ccc;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 10px;
-            white-space: nowrap;
-            text-align: center;
-            pointer-events: none;
+            color: #666;
+            text-transform: uppercase;
         }
 
-        /* Textos Técnicos (Ruas e Lotes) */
-        .tech-label {
-            text-align: center;
-            pointer-events: none;
-            background: transparent;
-            white-space: nowrap;
-        }
-        .lot-number { font-size: 10px; font-weight: 900; color: #000; display: block; margin-bottom: 2px; }
-        .lot-measure { font-size: 8px; color: #000; font-family: monospace; display: block; }
-        .street-name { 
-            font-size: 11px; 
-            font-weight: 900; 
-            color: #000; 
-            text-transform: uppercase; 
-            background: transparent; 
-            padding: 0;
-            white-space: nowrap;
-            display: inline-block;
-            /* Pequeno contorno branco para garantir leitura sobre linhas */
-            text-shadow: 
-                -1px -1px 0 #fff,  
-                 1px -1px 0 #fff,
-                -1px  1px 0 #fff,
-                 1px  1px 0 #fff;
+        /* The Blocks (Quadras) */
+        /* Each block is 50m wide (25m lot + 25m lot back-to-back) */
+        .block {
+            width: calc(50 * var(--scale-factor)); 
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns of lots back-to-back */
+            grid-template-rows: repeat(10, 1fr); /* 10 rows of lots */
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
         }
 
-        /* Selo de Engenharia */
-        #eng-stamp {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 320px;
+        /* Individual Lot (25m deep x 10m wide) 
+           Note: In this visual orientation, 'width' is the depth (25m) and 'height' is the frontage (10m)
+           because they are stacked vertically.
+        */
+        .lot {
+            height: calc(10 * var(--scale-factor)); /* 10m frontage */
+            border: 1px solid var(--lot-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 9px;
+            position: relative;
             background: white;
-            border: 3px solid #000;
-            z-index: 3000;
-            padding: 15px;
-            display: none;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
-        .project-mode #eng-stamp { display: block; }
 
-        /* MODO DE IMPRESSÃO A4 - RETRATO */
+        /* Adjust borders for back-to-back effect */
+        .block .lot:nth-child(odd) {
+            /* Left side lots */
+            border-right: 1px solid #aaa; 
+        }
+        .block .lot:nth-child(even) {
+            /* Right side lots */
+            border-left: 1px solid #aaa;
+        }
+
+        /* Editable text styling */
+        [contenteditable="true"]:hover {
+            background-color: #fff9c4;
+            cursor: text;
+            outline: 1px dashed #999;
+        }
+
+        .dimensions {
+            font-size: 7px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        /* --- Compass / Scale (Optional) --- */
+        .footer-legend {
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #444;
+        }
+
+        /* --- PRINT STYLES --- */
         @media print {
-            @page { size: A4 portrait; margin: 0mm; }
-            body, html { width: 100%; height: 100%; overflow: hidden; background: white; margin: 0; padding: 0; }
-            .control-panel { display: none !important; }
-            #main-container { width: 100%; height: 100%; display: block; }
-            #viewport { 
-                position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-                background: white !important; z-index: 9999;
+            @page {
+                size: landscape;
+                margin: 0.5cm;
             }
-            #map { width: 100%; height: 100%; background: white !important; }
-            
-            #eng-stamp { 
-                display: block !important; 
-                position: fixed; 
-                bottom: 15mm; 
-                right: 15mm; 
-                border: 2px solid black;
+
+            body {
+                background: white;
+                padding: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .controls {
+                display: none !important;
+            }
+
+            .map-container {
+                border: none;
                 box-shadow: none;
+                width: 100%;
+                max-width: none;
+                transform: scale(0.95); /* Ensure it fits margins */
+                transform-origin: top left;
+            }
+
+            /* Remove edit hints */
+            [contenteditable="true"]:hover {
+                background-color: transparent;
+                outline: none;
+            }
+
+            /* Make borders crisper for print */
+            .lot, .block, .road-horizontal, .road-vertical {
+                border-color: black;
+                color: black;
+            }
+            
+            .road-horizontal, .road-vertical {
+                background-color: #f5f5f5 !important; /* Save ink but keep definition */
             }
         }
     </style>
 </head>
-<body class="text-slate-900 font-sans">
+<body>
 
-    <div class="flex flex-col lg:flex-row h-screen" id="main-container">
-        <!-- Sidebar -->
-        <div class="w-full lg:w-96 bg-white shadow-2xl z-[2000] control-panel flex flex-col border-r border-slate-200 overflow-y-auto print:hidden">
-            
-            <div class="flex border-b border-slate-100 sticky top-0 bg-white z-10">
-                <button id="view-plan" class="flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50 transition-all">Vista Satélite</button>
-                <button id="view-project" class="flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50 transition-all">Planta de Projeto</button>
-            </div>
-
-            <div class="p-5 space-y-6 flex-1">
-                
-                <!-- Botão de Impressão (Destaque) -->
-                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
-                    <p class="text-[10px] text-indigo-600 font-bold mb-2 uppercase">Documento Técnico</p>
-                    <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                        </svg>
-                        Imprimir Planta (Retrato)
-                    </button>
-                </div>
-
-                <!-- Visibilidade -->
-                <div class="space-y-2">
-                    <h2 class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Camadas</h2>
-                    <div class="flex gap-2">
-                        <button id="toggle-areas" class="flex-1 bg-white border border-slate-200 py-2 rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-50">Divisões</button>
-                        <button id="toggle-pins" class="flex-1 bg-white border border-slate-200 py-2 rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-50">Pins</button>
-                    </div>
-                </div>
-
-                <hr class="border-slate-100">
-
-                <!-- Configuração Satélite -->
-                <div id="sat-controls-group" class="space-y-4">
-                    <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Ajuste Satélite</h2>
-                    <div class="bg-slate-900 p-3 rounded-lg text-white">
-                        <div class="flex justify-between mb-1"><span class="text-[9px] uppercase font-bold">Rotação Mapa</span><span id="mapRotValue" class="text-[9px] font-mono">0°</span></div>
-                        <input type="range" id="mapRotation" min="0" max="360" value="0" class="w-full">
-                    </div>
-                </div>
-
-                <!-- Loteamento -->
-                <div class="space-y-4">
-                    <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Dimensões (80 Lotes)</h2>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-slate-50 p-2 border rounded"><label class="block text-[8px] font-bold uppercase text-slate-400">Frente</label><input type="number" id="plotWidth" value="10" class="w-full bg-transparent font-bold text-sm outline-none"></div>
-                        <div class="bg-slate-50 p-2 border rounded"><label class="block text-[8px] font-bold uppercase text-slate-400">Fundo</label><input type="number" id="plotDepth" value="25" class="w-full bg-transparent font-bold text-sm outline-none"></div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between mb-1"><span class="text-[9px] uppercase font-bold text-slate-500">Alinhamento da Grade</span><span id="projectRotValue" class="text-[9px] font-bold text-indigo-600">0°</span></div>
-                        <input type="range" id="projectRotation" min="0" max="360" value="0" class="w-full">
-                    </div>
-                </div>
-
-                <!-- Áreas -->
-                <div class="space-y-2">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Marcações</h2>
-                        <button id="addAreaBtn" class="text-[9px] bg-slate-200 px-2 py-1 rounded font-bold hover:bg-slate-300">+ Add</button>
-                    </div>
-                    <div id="areasList" class="space-y-1 max-h-32 overflow-y-auto"></div>
-                </div>
-            </div>
-
-            <!-- Rodapé com ações -->
-            <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
-                <button id="recenterBtn" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[9px] uppercase hover:bg-slate-900 transition">Reposicionar Âncora</button>
-                <button id="clearDataBtn" class="w-full text-red-400 text-[8px] font-bold uppercase py-1 hover:text-red-600">Limpar Tudo</button>
-            </div>
-        </div>
-
-        <!-- Viewport -->
-        <div class="flex-1 relative" id="viewport">
-            <div id="map"></div>
-            
-            <!-- Selo Técnico Limpo -->
-            <div id="eng-stamp">
-                <div class="grid grid-cols-2 gap-y-3 text-[10px] uppercase font-bold font-mono tracking-tight text-slate-900">
-                    <div class="border-r-2 border-black pr-2">
-                        <span class="text-[8px] text-slate-500 block">PROPRIETÁRIO</span>
-                        <span class="text-xs">Vovó & Família</span>
-                    </div>
-                    <div class="pl-2">
-                        <span class="text-[8px] text-slate-500 block">LOCALIZAÇÃO</span>
-                        <span class="text-[9px]">3°53'06"S 40°44'34"W</span>
-                    </div>
-                    
-                    <div class="border-r-2 border-black border-t-2 border-black pr-2 pt-2 mt-1">
-                        <span class="text-[8px] text-slate-500 block">ÁREA TOTAL URBANIZADA</span>
-                        <span id="total-project-area" class="text-xs">--- m²</span>
-                    </div>
-                    <div class="pl-2 border-t-2 border-black pt-2 mt-1">
-                        <span class="text-[8px] text-slate-500 block">QUADRO DE ÁREAS</span>
-                        <span class="text-xs">80 Lotes Residenciais</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modal -->
-            <div id="nameModal" class="hidden absolute inset-0 bg-black/60 z-[3000] flex items-center justify-center p-4">
-                <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-xs">
-                    <h3 class="font-bold text-center mb-4">Nova Marcação</h3>
-                    <input type="text" id="propName" placeholder="Nome" class="w-full border p-2 rounded mb-4 text-sm">
-                    <div class="flex gap-2 justify-center mb-4 flex-wrap">
-                        <button class="color-opt w-6 h-6 rounded-full bg-red-500 border-2 border-white ring-1 ring-gray-200" data-color="#ef4444"></button>
-                        <button class="color-opt w-6 h-6 rounded-full bg-blue-500 border-2 border-white ring-1 ring-gray-200" data-color="#3b82f6"></button>
-                        <button class="color-opt w-6 h-6 rounded-full bg-green-500 border-2 border-white ring-1 ring-gray-200" data-color="#22c55e"></button>
-                        <button class="color-opt w-6 h-6 rounded-full bg-yellow-500 border-2 border-white ring-1 ring-gray-200" data-color="#eab308"></button>
-                        <button class="color-opt w-6 h-6 rounded-full bg-orange-500 border-2 border-white ring-1 ring-gray-200" data-color="#f97316"></button>
-                        <button class="color-opt w-6 h-6 rounded-full bg-purple-500 border-2 border-white ring-1 ring-gray-200" data-color="#a855f7"></button>
-                    </div>
-                    <button id="saveAreaBtn" class="w-full bg-indigo-600 text-white py-2 rounded text-xs font-bold uppercase">Criar</button>
-                </div>
-            </div>
+    <div class="controls">
+        <button onclick="window.print()">🖨️ Imprimir Planta</button>
+        <div class="instructions">
+            💡 Dica: Clica em qualquer texto no mapa (títulos, nomes de ruas, números) para editar antes de imprimir.
+            Use a orientação <strong>Paisagem</strong>.
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div class="map-container">
+        <div class="header-info">
+            <h1 contenteditable="true">Projeto Residencial Vale do Sol</h1>
+            <div class="subtitle" contenteditable="true">Planta Geral - 80 Lotes (250m² cada)</div>
+        </div>
+
+        <div class="subdivision-layout">
+            <!-- Rua Superior (10m) -->
+            <div class="road-horizontal road-top" contenteditable="true">Rua do Norte (10m)</div>
+
+            <!-- Main Row: Street | Block | Street | Block... -->
+            <div class="blocks-row">
+                
+                <!-- Rua 1 -->
+                <div class="road-vertical" contenteditable="true">Rua A (10m)</div>
+
+                <!-- Quadra 1 (Lotes 1-20) -->
+                <div class="block" id="quadra1">
+                    <!-- Gerado via JS para não poluir o HTML -->
+                </div>
+
+                <!-- Rua 2 -->
+                <div class="road-vertical" contenteditable="true">Rua B (10m)</div>
+
+                <!-- Quadra 2 (Lotes 21-40) -->
+                <div class="block" id="quadra2"></div>
+
+                <!-- Rua 3 -->
+                <div class="road-vertical" contenteditable="true">Rua C (10m)</div>
+
+                <!-- Quadra 3 (Lotes 41-60) -->
+                <div class="block" id="quadra3"></div>
+
+                <!-- Rua 4 -->
+                <div class="road-vertical" contenteditable="true">Rua D (10m)</div>
+
+                <!-- Quadra 4 (Lotes 61-80) -->
+                <div class="block" id="quadra4"></div>
+
+                <!-- Rua 5 -->
+                <div class="road-vertical" contenteditable="true">Rua E (10m)</div>
+
+            </div>
+
+            <!-- Avenida Inferior (20m) -->
+            <div class="road-horizontal road-bottom" contenteditable="true">Avenida Principal (20m)</div>
+        </div>
+
+        <div class="footer-legend">
+            <span contenteditable="true">Escala: Sem escala definida (Esquemático)</span>
+            <span contenteditable="true">Total: 80 Unidades</span>
+            <span contenteditable="true">Data: 2023</span>
+        </div>
+    </div>
+
     <script>
-        const initialLat = -3.885028;
-        const initialLng = -40.742972;
+        // Função para gerar os lotes dinamicamente e poupar código manual
+        function generateLots(containerId, startNum, endNum) {
+            const container = document.getElementById(containerId);
+            const totalLots = endNum - startNum + 1;
+            
+            // Vamos criar os lotes em pares (esquerdo/direito) descendo
+            // Lógica: 10 linhas.
+            // Linha 1: Lote Esq (start), Lote Dir (start + 10) ??
+            // Geralmente numeração de loteamento segue sentido horário ou sequencial.
+            // Vamos fazer sequencial simples: Esquerda desce, Direita desce.
+            
+            // Coluna Esquerda: startNum até startNum + 9
+            // Coluna Direita: startNum + 10 até endNum
+            
+            // Para renderizar corretamente no Grid (col1, col2), precisamos iterar linha a linha
+            const offset = 10; // Metade da quadra
 
-        const map = L.map('map', { 
-            zoomControl: false, 
-            maxZoom: 22, 
-            attributionControl: false,
-            zoomSnap: 0.1 
-        }).setView([initialLat, initialLng], 18);
+            for (let i = 0; i < 10; i++) {
+                // Lote Esquerdo (Face Rua Esquerda)
+                const lotLeft = document.createElement('div');
+                lotLeft.className = 'lot';
+                lotLeft.innerHTML = `<b contenteditable="true">L${startNum + i}</b><span class="dimensions">25x10</span>`;
+                container.appendChild(lotLeft);
 
-        const satLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22 }).addTo(map);
+                // Lote Direito (Face Rua Direita)
+                const lotRight = document.createElement('div');
+                lotRight.className = 'lot';
+                lotRight.innerHTML = `<b contenteditable="true">L${startNum + offset + i}</b><span class="dimensions">25x10</span>`;
+                container.appendChild(lotRight);
+            }
+        }
 
-        const areasLayer = L.layerGroup().addTo(map);
-        const gridLayer = L.layerGroup().addTo(map);
-        const labelsLayer = L.layerGroup().addTo(map);
-        const pinsLayer = L.layerGroup().addTo(map);
-        const techLabelsLayer = L.layerGroup().addTo(map);
-        const anchor = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
-
-        let areas = [];
-        let drawingArea = null;
-        let selectedColor = "#ef4444";
-        let globalPinCount = 1;
-        let isProjectMode = false;
-
-        const el = {
-            mapRotation: document.getElementById('mapRotation'),
-            projectRotation: document.getElementById('projectRotation'),
-            plotWidth: document.getElementById('plotWidth'),
-            plotDepth: document.getElementById('plotDepth'),
-            areasList: document.getElementById('areasList')
-        };
-
-        // --- MODO PLANTA (FIXO E PRINTÁVEL) ---
-        document.getElementById('view-plan').onclick = () => switchMode(false);
-        document.getElementById('view-project').onclick = () => switchMode(true);
+        // Gerar as 4 Quadras
+        // Quadra 1: 1 a 20
+        generateLots('quadra1', 1, 20);
         
-        document.getElementById('printBtn').onclick = () => {
-            if (!isProjectMode) switchMode(true);
-            
-            setTimeout(() => {
-                fitProjectBounds(); 
-                setTimeout(() => {
-                    window.print();
-                }, 600);
-            }, 300);
-        };
+        // Quadra 2: 21 a 40
+        generateLots('quadra2', 21, 40);
 
-        function switchMode(project) {
-            isProjectMode = project;
-            const container = document.getElementById('main-container');
-            const satControls = document.getElementById('sat-controls-group');
-            
-            container.classList.toggle('project-mode', project);
-            satControls.classList.toggle('opacity-30', project);
-            satControls.classList.toggle('pointer-events-none', project);
-            
-            // Estilo Abas
-            document.getElementById('view-project').className = project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-slate-800 text-slate-800 bg-slate-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
-            document.getElementById('view-plan').className = !project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
-            
-            if (project) {
-                // Esconder âncora no modo projeto
-                anchor.setOpacity(0);
-                
-                map.dragging.disable();
-                map.touchZoom.disable();
-                map.doubleClickZoom.disable();
-                map.scrollWheelZoom.disable();
-                map.boxZoom.disable();
-                if (map.tap) map.tap.disable();
-                map.invalidateSize();
-                setTimeout(fitProjectBounds, 100);
-            } else {
-                // Mostrar âncora no modo satélite
-                anchor.setOpacity(1);
-                
-                map.dragging.enable();
-                map.touchZoom.enable();
-                map.doubleClickZoom.enable();
-                map.scrollWheelZoom.enable();
-                map.boxZoom.enable();
-                if (map.tap) map.tap.enable();
-                updateMapRotation();
-            }
+        // Quadra 3: 41 a 60
+        generateLots('quadra3', 41, 60);
 
-            drawGrid();
-        }
+        // Quadra 4: 61 a 80
+        generateLots('quadra4', 61, 80);
 
-        // Função de Enquadramento
-        function fitProjectBounds() {
-            if(isProjectMode) {
-                document.getElementById('map').style.transform = 'none';
-            }
-            const gridBounds = calculateGridBounds();
-            if (gridBounds) {
-                // Padding reduzido para ocupar mais a folha
-                map.fitBounds(gridBounds, { padding: [10, 10], animate: false });
-            }
-        }
-
-        function calculateGridBounds() {
-            const pw = parseFloat(el.plotWidth.value);
-            const pd = parseFloat(el.plotDepth.value);
-            const rot = parseFloat(el.projectRotation.value) * (Math.PI / 180);
-            const pos = anchor.getLatLng();
-            const scale = { lat: 1 / 111320, lng: 1 / (111320 * Math.cos(pos.lat * Math.PI / 180)) };
-            
-            const sw = 10;
-            const nB = 4;
-            const tw = 10 * pw;
-            const th_total = (nB * (pd * 2)) + ((nB + 1) * sw);
-            
-            const sideL = 10;
-            const sideR = 20;
-            
-            const points = [
-                {x: -sideL, y: 0},
-                {x: tw + sideR, y: 0},
-                {x: tw + sideR, y: th_total},
-                {x: -sideL, y: th_total}
-            ];
-            
-            const latLngs = points.map(p => {
-                const coords = rotatePoint(p.x, p.y, tw, th_total, rot, pos, scale);
-                return L.latLng(coords[0], coords[1]);
-            });
-            
-            return L.latLngBounds(latLngs);
-        }
-
-        // --- SISTEMA DE GRADE E DESENHO ---
-        function drawGrid() {
-            gridLayer.clearLayers();
-            techLabelsLayer.clearLayers();
-            
-            const pos = anchor.getLatLng();
-            const pw = parseFloat(el.plotWidth.value);
-            const pd = parseFloat(el.plotDepth.value);
-            const rot = parseFloat(el.projectRotation.value) * (Math.PI / 180);
-            const scale = { lat: 1 / 111320, lng: 1 / (111320 * Math.cos(pos.lat * Math.PI / 180)) };
-            
-            const sw = 10;
-            const sideStreetL = isProjectMode ? 10 : 0; 
-            const sideStreetR = isProjectMode ? 20 : 0; 
-            const nB = 4;
-            const lPS = 10;
-            
-            const tw = lPS * pw;
-            const th_calc = (nB * (pd * 2)) + ((nB + 1) * sw);
-
-            // Cores padronizadas para modo projeto
-            const streetFill = isProjectMode ? '#f8fafc' : '#fff';
-            const streetStroke = isProjectMode ? '#000' : '#94a3b8';
-            const streetWeight = isProjectMode ? 1 : 0.5;
-            const streetOp = isProjectMode ? 1 : 0.2;
-
-            if (isProjectMode) {
-                // Rua Limite (Lateral Esquerda - 10m)
-                drawPoly([{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th_calc}, {x: -sideStreetL, y: th_calc}], streetFill, streetStroke, streetWeight, streetOp);
-                addTechLabel("RUA DE FUNDO (10m)", {x: -sideStreetL/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
-
-                // Avenida Principal (Lateral Direita - 20m) - Mesma cor padronizada
-                drawPoly([{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th_calc}, {x: tw, y: th_calc}], streetFill, streetStroke, streetWeight, streetOp);
-                addTechLabel("AVENIDA PRINCIPAL (20m)", {x: tw + sideStreetR/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
-            }
-
-            // Desenhar as 5 Ruas Horizontais
-            for (let i = 0; i <= nB; i++) {
-                if (isProjectMode) {
-                    let ry = i * (pd * 2 + sw);
-                    drawPoly([{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}], streetFill, streetStroke, streetWeight, streetOp);
-                    addTechLabel("RUA " + (i + 1) + " (10m)", {x: tw/2, y: ry + sw/2}, rot, pos, scale, 'street-name', false);
-                }
-            }
-
-            let lotCounter = 1;
-            // Desenhar os 4 Blocos
-            for (let b = 0; b < nB; b++) {
-                for (let s = 0; s < 2; s++) { 
-                    for (let l = 0; l < lPS; l++) {
-                        let ox = l * pw;
-                        let oy = (b * (pd * 2 + sw)) + sw + (s * pd);
-                        
-                        const color = isProjectMode ? '#fff' : '#818cf8';
-                        const stroke = isProjectMode ? '#000' : '#4f46e5';
-                        const w = isProjectMode ? 1 : 1.2;
-                        const op = isProjectMode ? 0 : 0.25;
-                        
-                        drawPoly([{x:ox,y:oy}, {x:ox+pw,y:oy}, {x:ox+pw,y:oy+pd}, {x:ox,y:oy+pd}], color, stroke, w, op);
-
-                        if (isProjectMode) {
-                            const num = String(lotCounter++).padStart(2, '0');
-                            const labelText = `<span class="lot-number">${num}</span><span class="lot-measure">${pw}x${pd}</span>`;
-                            addTechLabel(labelText, {x: ox + pw/2, y: oy + pd/2}, rot, pos, scale, 'text-center', false);
-                        }
-                    }
-                }
-            }
-
-            const areaTotal = (tw * th_calc) + (isProjectMode ? (sideStreetL + sideStreetR) * th_calc : 0);
-            document.getElementById('total-project-area').innerText = areaTotal.toLocaleString('pt-BR') + " m²";
-            
-            function drawPoly(pts, fill, str, w, op) {
-                L.polygon(pts.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { 
-                    color: str, weight: w, fillColor: fill, fillOpacity: op, interactive: false 
-                }).addTo(gridLayer);
-            }
-        }
-
-        // Funções Auxiliares
-        function addTechLabel(text, offset, angle, anchor, scale, className, isVertical = false) {
-            const pw = parseFloat(el.plotWidth.value);
-            const tw = 10 * pw;
-            const th_center_calc = (4 * parseFloat(el.plotDepth.value) * 2 + 30); 
-            
-            const pt = rotatePoint(offset.x, offset.y, tw, th_center_calc, angle, anchor, scale);
-            const extraRot = isVertical ? (90 * Math.PI / 180) : 0;
-            
-            L.marker(pt, { 
-                icon: L.divIcon({ 
-                    className: 'tech-label', 
-                    html: `<div class="${className}" style="transform: rotate(${angle + extraRot}rad)">${text}</div>` 
-                }) 
-            }).addTo(techLabelsLayer);
-        }
-
-        function rotatePoint(x, y, tw, th, angle, anchor, scale) {
-            const rx = x - tw / 2;
-            const ry = y - th / 2;
-            const nx = rx * Math.cos(angle) - ry * Math.sin(angle);
-            const ny = rx * Math.sin(angle) + ry * Math.cos(angle);
-            return [anchor.lat + ny * scale.lat, anchor.lng + nx * scale.lng];
-        }
-
-        function updateMapRotation() {
-            if (isProjectMode) return; 
-            const d = el.mapRotation.value;
-            document.getElementById('map').style.transform = `rotate(${d}deg)`;
-            document.documentElement.style.setProperty('--map-rot', d);
-        }
-
-        // Listeners e Inicialização
-        ['plotWidth', 'plotDepth', 'projectRotation'].forEach(id => document.getElementById(id).oninput = () => { drawGrid(); if(isProjectMode) fitProjectBounds(); });
-        el.mapRotation.oninput = updateMapRotation;
-        anchor.on('drag', drawGrid);
-        
-        document.getElementById('recenterBtn').onclick = () => { anchor.setLatLng(map.getCenter()); drawGrid(); };
-        document.getElementById('toggle-areas').onclick = function() { map.hasLayer(areasLayer) ? map.removeLayer(areasLayer) : map.addLayer(areasLayer); };
-        document.getElementById('toggle-pins').onclick = function() { map.hasLayer(pinsLayer) ? map.removeLayer(pinsLayer) : map.addLayer(pinsLayer); };
-        
-        document.getElementById('addAreaBtn').onclick = () => document.getElementById('nameModal').classList.remove('hidden');
-        document.getElementById('saveAreaBtn').onclick = () => {
-            drawingArea = { name: document.getElementById('propName').value || "Area", color: selectedColor, markers: [], line: L.polyline([], { color: selectedColor }).addTo(areasLayer) };
-            document.getElementById('nameModal').classList.add('hidden');
-            document.getElementById('activeAreaStatus').classList.remove('hidden');
-        };
-        document.querySelectorAll('.color-opt').forEach(btn => btn.onclick = function() { selectedColor = this.dataset.color; });
-        
-        map.on('click', (e) => {
-            if (!drawingArea) return;
-            let latlng = e.latlng;
-            const m = L.marker(latlng, { draggable: !isProjectMode, icon: L.divIcon({ className: drawingArea.markers.length===0?'custom-pin pin-start':'custom-pin', html: '•' }) }).addTo(pinsLayer);
-            if (drawingArea.markers.length === 0) m.on('click', finishArea);
-            drawingArea.markers.push(m);
-            drawingArea.line.setLatLngs(drawingArea.markers.map(x=>x.getLatLng()));
-        });
-
-        function finishArea() {
-            areasLayer.removeLayer(drawingArea.line);
-            L.polygon(drawingArea.markers.map(x=>x.getLatLng()), { color: drawingArea.color }).addTo(areasLayer);
-            drawingArea = null;
-            document.getElementById('activeAreaStatus').classList.add('hidden');
-        }
-
-        window.onload = () => setTimeout(drawGrid, 500);
     </script>
 </body>
 </html>
