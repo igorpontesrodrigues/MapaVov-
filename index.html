@@ -70,11 +70,12 @@
             font-weight: 800; 
             color: #1e293b; 
             text-transform: uppercase; 
-            background: rgba(255,255,255,0.8); 
-            padding: 2px 6px; 
+            background: rgba(255,255,255,0.9); 
+            padding: 2px 8px; 
             border-radius: 2px;
             white-space: nowrap;
             display: inline-block;
+            border: 1px solid #cbd5e1;
         }
 
         /* Selo de Engenharia */
@@ -92,10 +93,28 @@
         .project-mode #eng-stamp { display: block; }
 
         @media print {
+            @page { size: landscape; margin: 0; }
+            body { background: white !important; }
             .control-panel { display: none !important; }
-            #viewport { width: 100vw; height: 100vh; top: 0 !important; left: 0 !important; }
-            #map { top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; transform: none !important; }
+            #main-container { flex-direction: column !important; }
+            #viewport { 
+                position: fixed !important; 
+                top: 0 !important; 
+                left: 0 !important; 
+                width: 100vw !important; 
+                height: 100vh !important; 
+                z-index: 9999 !important;
+            }
+            #map { 
+                top: 0 !important; 
+                left: 0 !important; 
+                width: 100% !important; 
+                height: 100% !important; 
+                transform: none !important; 
+                visibility: visible !important;
+            }
             .leaflet-control-container { display: none !important; }
+            #eng-stamp { display: block !important; bottom: 20px !important; right: 20px !important; border: 3px solid black !important; }
         }
     </style>
 </head>
@@ -168,7 +187,7 @@
             </div>
 
             <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
-                <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-lg hover:bg-indigo-700 transition">Imprimir Planta PDF</button>
+                <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-lg hover:bg-indigo-700 transition">Gerar Planta PDF / Imprimir</button>
                 <button id="recenterBtn" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[9px] uppercase">Reposicionar Âncora</button>
                 <button id="clearDataBtn" class="w-full text-red-400 text-[8px] font-bold uppercase py-1">Resetar Dados</button>
             </div>
@@ -179,28 +198,24 @@
             <div id="map"></div>
             
             <!-- Selo Técnico Profissional -->
-            <div id="eng-stamp" class="shadow-[0_0_0_2px_rgba(0,0,0,1)]">
-                <div class="border-b-2 border-black pb-2 mb-3 text-center">
-                    <h4 class="font-black text-lg uppercase tracking-tighter">Projeto de Parcelamento do Solo</h4>
-                    <p class="text-[10px] font-bold">Ubajara/Tianguá - Ceará</p>
-                </div>
+            <div id="eng-stamp">
                 <div class="grid grid-cols-2 gap-y-3 text-[10px] uppercase font-black">
                     <div class="border-r border-black pr-2">PROPRIETÁRIO: <br><span class="font-normal text-slate-600">Vovó & Família</span></div>
                     <div class="pl-2 border-b border-black">DATA: <br><span class="font-normal text-slate-600">Jan / 2026</span></div>
                     <div class="border-r border-black pr-2">COORDENADAS: <br><span class="font-normal text-slate-600 text-[8px]">3°53'06"S 40°44'34"W</span></div>
-                    <div class="pl-2">ÁREA TOTAL: <br><span id="total-project-area" class="font-normal text-slate-600">---</span></div>
+                    <div class="pl-2">ÁREA ESTIMADA: <br><span id="total-project-area" class="font-normal text-slate-600">---</span></div>
                     <div class="col-span-2 border-t-2 border-black pt-2 text-center text-[11px]">
-                        Loteamento: <span class="text-indigo-600">80 UNIDADES</span>
+                        Loteamento Planejado: <span class="text-indigo-600 font-black">80 UNIDADES</span>
                     </div>
                 </div>
             </div>
 
             <!-- Modal -->
             <div id="nameModal" class="hidden absolute inset-0 bg-black/60 z-[3000] flex items-center justify-center p-4">
-                <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-sm border-t-8 border-indigo-600">
-                    <h3 class="font-black text-xl mb-6 text-center">Demarcar Lote Familiar</h3>
+                <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm border-t-8 border-indigo-600">
+                    <h3 class="font-black text-xl mb-6 text-center">Identificar Lote Familiar</h3>
                     <div class="space-y-4">
-                        <input type="text" id="propName" placeholder="Identificação (Ex: Vovó, Filho 1)" class="w-full border-2 border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-indigo-600">
+                        <input type="text" id="propName" placeholder="Nome (Ex: Vovó, Filho 1)" class="w-full border-2 border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-indigo-600">
                         <div class="flex gap-2 justify-center flex-wrap">
                             <button class="color-opt w-9 h-9 rounded-full bg-red-500 border-2 border-white" data-color="#ef4444"></button>
                             <button class="color-opt w-9 h-9 rounded-full bg-blue-500 border-2 border-white" data-color="#3b82f6"></button>
@@ -245,14 +260,15 @@
             areasList: document.getElementById('areasList')
         };
 
-        // --- TROCA DE MODOS ---
+        // --- FUNÇÕES DE INTERFACE ---
         document.getElementById('view-plan').onclick = () => switchMode(false);
         document.getElementById('view-project').onclick = () => switchMode(true);
         
         document.getElementById('printBtn').onclick = () => {
-            // Tenta abrir o diálogo de impressão de forma mais agressiva
-            window.focus();
-            window.print();
+            if (!isProjectMode) switchMode(true);
+            setTimeout(() => {
+                window.print();
+            }, 500);
         };
 
         function switchMode(project) {
@@ -264,6 +280,7 @@
             document.getElementById('view-plan').className = !project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
             
             drawGrid();
+            map.invalidateSize();
         }
 
         // --- VISIBILIDADE ---
@@ -283,11 +300,11 @@
                 areas: areas.map(a => ({ id: a.id, name: a.name, color: a.color, points: a.markers.map(m => m.getLatLng()) })),
                 settings: { mapRotation: el.mapRotation.value, projectRotation: el.projectRotation.value, plotWidth: el.plotWidth.value, plotDepth: el.plotDepth.value, anchor: anchor.getLatLng(), pinCount: globalPinCount }
             };
-            localStorage.setItem('loteamento_v7', JSON.stringify(data));
+            localStorage.setItem('loteamento_v8', JSON.stringify(data));
         }
 
         function loadFromStorage() {
-            const stored = localStorage.getItem('loteamento_v7');
+            const stored = localStorage.getItem('loteamento_v8');
             if (!stored) return;
             const data = JSON.parse(stored);
             el.mapRotation.value = data.settings.mapRotation || 0;
@@ -332,7 +349,7 @@
         });
 
         document.getElementById('saveAreaBtn').onclick = () => {
-            drawingArea = { name: document.getElementById('propName').value || "Terreno", color: selectedColor, markers: [], line: L.polyline([], { color: selectedColor, weight: 3, dashArray: '5, 10' }).addTo(areasLayer) };
+            drawingArea = { name: document.getElementById('propName').value || "Área", color: selectedColor, markers: [], line: L.polyline([], { color: selectedColor, weight: 3, dashArray: '5, 10' }).addTo(areasLayer) };
             document.getElementById('nameModal').classList.add('hidden');
             document.getElementById('activeAreaStatus').classList.remove('hidden');
         };
@@ -387,7 +404,7 @@
         }
 
         function renderAreasList() {
-            el.areasList.innerHTML = areas.length ? '' : '<p class="text-[10px] text-slate-400 italic text-center py-4">Nenhuma área demarcada.</p>';
+            el.areasList.innerHTML = areas.length ? '' : '<p class="text-[10px] text-slate-400 italic text-center py-4">Sem marcações.</p>';
             areas.forEach(a => {
                 const d = document.createElement('div');
                 d.className = "p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between text-[11px] shadow-sm";
@@ -429,61 +446,47 @@
             
             const scale = { lat: 1 / 111320, lng: 1 / (111320 * Math.cos(pos.lat * Math.PI / 180)) };
             
-            const sw = 10; // Rua interna
-            const sideStreetL = isProjectMode ? 10 : 0; // Rua Lateral Esquerda (10m) - RUA DE LIMITE
-            const sideStreetR = isProjectMode ? 20 : 0; // Rua Lateral Direita (20m) - AVENIDA PRINCIPAL
+            const sw = 10; 
+            const sideStreetL = isProjectMode ? 10 : 0; // RUA DE LIMITE
+            const sideStreetR = isProjectMode ? 20 : 0; // AVENIDA PRINCIPAL
             const nB = 4; 
             const lPS = 10; 
             
             const tw = lPS * pw; 
-            const th = (nB * (pd * 2)) + ((nB - 1) * sw); 
+            const th_calc = (nB * (pd * 2)) + ((nB - 1) * sw); 
 
-            // --- Lógica de Ruas do Projeto Técnico ---
             if (isProjectMode) {
-                // Rua de Limite (LADO ESQUERDO - 10m)
-                const cSideL = [{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th}, {x: -sideStreetL, y: th}];
-                L.polygon(cSideL.map(p => rotatePoint(p.x, p.y, tw, th, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#f1f5f9', fillOpacity: 1 }).addTo(gridLayer);
-                addTechLabel("RUA DE LIMITE (10m)", {x: -sideStreetL/2, y: th/2}, rot, pos, scale, 'street-name', true);
+                // Rua de Limite (Vertical Esquerda)
+                const cSideL = [{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th_calc}, {x: -sideStreetL, y: th_calc}];
+                L.polygon(cSideL.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#f1f5f9', fillOpacity: 1 }).addTo(gridLayer);
+                addTechLabel("RUA DE LIMITE (10m)", {x: -sideStreetL/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
 
-                // Avenida Principal (LADO DIREITO - 20m)
-                const cSideR = [{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th}, {x: tw, y: th}];
-                L.polygon(cSideR.map(p => rotatePoint(p.x, p.y, tw, th, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#334155', fillOpacity: 1 }).addTo(gridLayer);
-                addTechLabel("AVENIDA PRINCIPAL (20m)", {x: tw + sideStreetR/2, y: th/2}, rot, pos, scale, 'street-name', true);
+                // Avenida Principal (Vertical Direita)
+                const cSideR = [{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th_calc}, {x: tw, y: th_calc}];
+                L.polygon(cSideR.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#334155', fillOpacity: 1 }).addTo(gridLayer);
+                addTechLabel("AVENIDA PRINCIPAL (20m)", {x: tw + sideStreetR/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
 
-                // Rua de Fundo (10m)
-                const cBack = [{x: -sideStreetL, y: th}, {x: tw + sideStreetR, y: th}, {x: tw + sideStreetR, y: th + 10}, {x: -sideStreetL, y: th + 10}];
-                L.polygon(cBack.map(p => rotatePoint(p.x, p.y, tw, th, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#e2e8f0', fillOpacity: 1 }).addTo(gridLayer);
-                addTechLabel("VIA DE ACESSO FUNDO (10m)", {x: tw/2, y: th + 5}, rot, pos, scale, 'street-name', false);
+                // Rua de Fundo (Horizontal)
+                const cBack = [{x: -sideStreetL, y: th_calc}, {x: tw + sideStreetR, y: th_calc}, {x: tw + sideStreetR, y: th_calc + 10}, {x: -sideStreetL, y: th_calc + 10}];
+                L.polygon(cBack.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#e2e8f0', fillOpacity: 1 }).addTo(gridLayer);
+                addTechLabel("VIA DE ACESSO FUNDO (10m)", {x: tw/2, y: th_calc + 5}, rot, pos, scale, 'street-name', false);
             }
 
-            // --- Blocos de Lotes ---
+            // Blocos de Lotes
             let lotCounter = 1;
-
             for (let b = 0; b < nB; b++) {
                 let blockY = b * (pd * 2 + sw);
-
-                // Ruas Internas
                 if (b < nB - 1 && isProjectMode) {
                     let ry = (b + 1) * (pd * 2) + b * sw;
                     const cr = [{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}];
-                    L.polygon(cr.map(p => rotatePoint(p.x, p.y, tw, th, rot, pos, scale)), { color: '#64748b', weight: 0.5, fillColor: '#f8fafc', fillOpacity: 1 }).addTo(gridLayer);
+                    L.polygon(cr.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#64748b', weight: 0.5, fillColor: '#f8fafc', fillOpacity: 1 }).addTo(gridLayer);
                     addTechLabel("RUA " + (b + 1) + " (10m)", {x: tw/2, y: ry + sw/2}, rot, pos, scale, 'street-name', false);
                 }
-
                 for (let s = 0; s < 2; s++) { 
                     for (let l = 0; l < lPS; l++) {
-                        let ox = l * pw;
-                        let oy = (b * (pd * 2 + sw)) + (s * pd);
+                        let ox = l * pw, oy = (b * (pd * 2 + sw)) + (s * pd);
                         const c = [{x:ox,y:oy},{x:ox+pw,y:oy},{x:ox+pw,y:oy+pd},{x:ox,y:oy+pd}];
-                        
-                        L.polygon(c.map(p => rotatePoint(p.x, p.y, tw, th, rot, pos, scale)), { 
-                            color: isProjectMode ? '#000' : '#4f46e5', 
-                            weight: isProjectMode ? 0.5 : 1.2, 
-                            fillColor: isProjectMode ? '#fff' : '#818cf8', 
-                            fillOpacity: isProjectMode ? 0 : 0.25, 
-                            interactive: false 
-                        }).addTo(gridLayer);
-
+                        L.polygon(c.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: isProjectMode ? '#000' : '#4f46e5', weight: isProjectMode ? 0.5 : 1.2, fillColor: isProjectMode ? '#fff' : '#818cf8', fillOpacity: isProjectMode ? 0 : 0.25, interactive: false }).addTo(gridLayer);
                         if (isProjectMode) {
                             const num = String(lotCounter++).padStart(2, '0');
                             addTechLabel(num, {x: ox + pw/2, y: oy + pd/2 + 2}, rot, pos, scale, 'lot-number', false);
@@ -493,27 +496,17 @@
                 }
             }
 
-            const th_total = (nB * (pd * 2)) + ((nB - 1) * sw);
-            const totalArea = (tw * th_total) + (isProjectMode ? (sideStreetL + sideStreetR) * th_total + (tw + sideStreetL + sideStreetR) * 10 : 0);
+            const totalArea = (tw * th_calc) + (isProjectMode ? (sideStreetL + sideStreetR) * th_calc + (tw + sideStreetL + sideStreetR) * 10 : 0);
             document.getElementById('total-project-area').innerText = totalArea.toLocaleString('pt-BR') + " m²";
-
             saveToStorage();
         }
 
         function addTechLabel(text, offset, angle, anchor, scale, className, isVertical = false) {
-            const tw = (10 * parseFloat(el.plotWidth.value));
-            const th = (4 * parseFloat(el.plotDepth.value) * 2 + 30);
+            const pw = parseFloat(el.plotWidth.value), pd = parseFloat(el.plotDepth.value);
+            const tw = (10 * pw), th = (4 * pd * 2 + 30);
             const pt = rotatePoint(offset.x, offset.y, tw, th, angle, anchor, scale);
-            
-            // Se for vertical, rotacionamos o texto 90 graus extras
             const extraRot = isVertical ? (90 * Math.PI / 180) : 0;
-            
-            L.marker(pt, {
-                icon: L.divIcon({
-                    className: 'tech-label',
-                    html: `<div class="${className}" style="transform: rotate(${angle + extraRot}rad)">${text}</div>`
-                })
-            }).addTo(techLabelsLayer);
+            L.marker(pt, { icon: L.divIcon({ className: 'tech-label', html: `<div class="${className}" style="transform: rotate(${angle + extraRot}rad)">${text}</div>` }) }).addTo(techLabelsLayer);
         }
 
         function rotatePoint(x, y, tw, th, angle, anchor, scale) {
@@ -526,7 +519,7 @@
         ['plotWidth', 'plotDepth', 'projectRotation'].forEach(id => document.getElementById(id).oninput = drawGrid);
         anchor.on('drag', drawGrid);
         document.getElementById('recenterBtn').onclick = () => { anchor.setLatLng(map.getCenter()); drawGrid(); };
-        document.getElementById('clearDataBtn').onclick = () => { if(confirm("Apagar todos os dados?")) { localStorage.clear(); location.reload(); } };
+        document.getElementById('clearDataBtn').onclick = () => { if(confirm("Apagar dados?")) { localStorage.clear(); location.reload(); } };
 
         window.onload = () => { loadFromStorage(); setTimeout(drawGrid, 500); };
     </script>
