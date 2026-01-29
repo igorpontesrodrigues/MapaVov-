@@ -83,29 +83,31 @@
             position: absolute;
             bottom: 30px;
             right: 30px;
-            width: 300px;
+            width: 280px;
             background: white;
-            border: 2px solid #000;
+            border: 3px solid #000;
             z-index: 2000;
-            padding: 15px;
+            padding: 10px;
             display: none;
         }
         .project-mode #eng-stamp { display: block; }
 
         @media print {
             @page { size: landscape; margin: 0; }
-            body { background: white !important; }
+            body { background: white !important; margin: 0; padding: 0; overflow: hidden; }
             .control-panel { display: none !important; }
-            #main-container { flex-direction: column !important; }
+            #main-container { display: block !important; width: 100vw; height: 100vh; }
             #viewport { 
                 position: fixed !important; 
                 top: 0 !important; 
                 left: 0 !important; 
-                width: 100vw !important; 
-                height: 100vh !important; 
+                width: 100% !important; 
+                height: 100% !important; 
                 z-index: 9999 !important;
+                background: white !important;
             }
             #map { 
+                position: absolute !important;
                 top: 0 !important; 
                 left: 0 !important; 
                 width: 100% !important; 
@@ -114,7 +116,15 @@
                 visibility: visible !important;
             }
             .leaflet-control-container { display: none !important; }
-            #eng-stamp { display: block !important; bottom: 20px !important; right: 20px !important; border: 3px solid black !important; }
+            /* Posicionar selo na impressão */
+            #eng-stamp { 
+                display: block !important; 
+                position: fixed !important;
+                bottom: 20px !important; 
+                right: 20px !important; 
+                border: 2px solid black !important;
+                z-index: 10000 !important;
+            }
         }
     </style>
 </head>
@@ -187,7 +197,7 @@
             </div>
 
             <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
-                <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-lg hover:bg-indigo-700 transition">Gerar Planta PDF / Imprimir</button>
+                <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-lg hover:bg-indigo-700 transition">Imprimir Planta PDF</button>
                 <button id="recenterBtn" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[9px] uppercase">Reposicionar Âncora</button>
                 <button id="clearDataBtn" class="w-full text-red-400 text-[8px] font-bold uppercase py-1">Resetar Dados</button>
             </div>
@@ -197,15 +207,19 @@
         <div class="flex-1" id="viewport">
             <div id="map"></div>
             
-            <!-- Selo Técnico Profissional -->
+            <!-- Selo Técnico Profissional (Simplificado) -->
             <div id="eng-stamp">
-                <div class="grid grid-cols-2 gap-y-3 text-[10px] uppercase font-black">
-                    <div class="border-r border-black pr-2">PROPRIETÁRIO: <br><span class="font-normal text-slate-600">Vovó & Família</span></div>
-                    <div class="pl-2 border-b border-black">DATA: <br><span class="font-normal text-slate-600">Jan / 2026</span></div>
-                    <div class="border-r border-black pr-2">COORDENADAS: <br><span class="font-normal text-slate-600 text-[8px]">3°53'06"S 40°44'34"W</span></div>
-                    <div class="pl-2">ÁREA ESTIMADA: <br><span id="total-project-area" class="font-normal text-slate-600">---</span></div>
-                    <div class="col-span-2 border-t-2 border-black pt-2 text-center text-[11px]">
-                        Loteamento Planejado: <span class="text-indigo-600 font-black">80 UNIDADES</span>
+                <div class="grid grid-cols-2 gap-y-2 text-[10px] uppercase font-black">
+                    <div class="border-b border-black pb-1 col-span-2 text-center text-xs">Informações do Loteamento</div>
+                    
+                    <div class="border-r border-black pr-2 pt-1">PROPRIETÁRIO: <br><span class="font-normal text-slate-600">Vovó & Família</span></div>
+                    <div class="pl-2 pt-1">DATA: <br><span class="font-normal text-slate-600">29/01/2026</span></div>
+                    
+                    <div class="border-r border-black border-t border-black pr-2 pt-1">COORDENADAS: <br><span class="font-normal text-slate-600 text-[9px]">3°53'06"S 40°44'34"W</span></div>
+                    <div class="pl-2 border-t border-black pt-1">ÁREA TOTAL: <br><span id="total-project-area" class="font-normal text-slate-600">---</span></div>
+                    
+                    <div class="col-span-2 border-t-2 border-black pt-2 text-center text-[12px] mt-1">
+                        Total de Lotes: <span class="text-indigo-600 font-black">80 UNIDADES</span>
                     </div>
                 </div>
             </div>
@@ -265,10 +279,14 @@
         document.getElementById('view-project').onclick = () => switchMode(true);
         
         document.getElementById('printBtn').onclick = () => {
-            if (!isProjectMode) switchMode(true);
-            setTimeout(() => {
-                window.print();
-            }, 500);
+            if (!isProjectMode) {
+                switchMode(true);
+                // Pequeno delay para garantir que o fitBounds aconteça
+                setTimeout(() => { window.print(); }, 800);
+            } else {
+                fitProjectBounds(); // Garante o fit antes de imprimir
+                setTimeout(() => { window.print(); }, 300);
+            }
         };
 
         function switchMode(project) {
@@ -279,8 +297,74 @@
             document.getElementById('view-project').className = project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-slate-800 text-slate-800 bg-slate-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
             document.getElementById('view-plan').className = !project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
             
+            if (project) {
+                // Desabilitar interações no modo projeto (fixar)
+                map.dragging.disable();
+                map.touchZoom.disable();
+                map.doubleClickZoom.disable();
+                map.scrollWheelZoom.disable();
+                map.boxZoom.disable();
+                map.keyboard.disable();
+                if (map.tap) map.tap.disable();
+                
+                // Ajustar visualização automaticamente
+                fitProjectBounds();
+            } else {
+                // Reabilitar interações
+                map.dragging.enable();
+                map.touchZoom.enable();
+                map.doubleClickZoom.enable();
+                map.scrollWheelZoom.enable();
+                map.boxZoom.enable();
+                map.keyboard.enable();
+                if (map.tap) map.tap.enable();
+            }
+
             drawGrid();
             map.invalidateSize();
+        }
+
+        // Função para calcular o enquadramento perfeito do projeto
+        function fitProjectBounds() {
+            const pw = parseFloat(el.plotWidth.value);
+            const pd = parseFloat(el.plotDepth.value);
+            const rot = parseFloat(el.projectRotation.value) * (Math.PI / 180);
+            const pos = anchor.getLatLng();
+            // Escala local aproximada para conversão metros -> graus
+            const scale = { lat: 1 / 111320, lng: 1 / (111320 * Math.cos(pos.lat * Math.PI / 180)) };
+            
+            const sw = 10;
+            const nB = 4;
+            const tw = 10 * pw;
+            const th_total = (nB * (pd * 2)) + ((nB - 1) * sw);
+            
+            // Dimensões extras das ruas laterais (modo projeto)
+            const sideL = 10; 
+            const sideR = 20; 
+            const back = 10; 
+            
+            // Pontos extremos do retângulo do projeto (relativos ao centro da rotação em drawGrid)
+            // drawGrid roda em torno do centro do bloco principal (tw/2, th/2 do bloco)
+            // Precisamos simular os 4 cantos extremos do layout completo ANTES da rotação, 
+            // e depois aplicar rotatePoint neles.
+            
+            // Extremos considerando as ruas adicionadas
+            const points = [
+                {x: -sideL, y: 0},                 // Topo Esquerda
+                {x: tw + sideR, y: 0},             // Topo Direita
+                {x: tw + sideR, y: th_total + back}, // Fundo Direita
+                {x: -sideL, y: th_total + back}      // Fundo Esquerda
+            ];
+            
+            const latLngs = points.map(p => {
+                // Usamos a mesma lógica de rotação do drawGrid
+                const coords = rotatePoint(p.x, p.y, tw, th_total, rot, pos, scale);
+                return L.latLng(coords[0], coords[1]);
+            });
+            
+            const bounds = L.latLngBounds(latLngs);
+            // Padding generoso para garantir que rótulos e selo não cubram o desenho
+            map.fitBounds(bounds, { padding: [50, 50], animate: true });
         }
 
         // --- VISIBILIDADE ---
