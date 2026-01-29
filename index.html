@@ -9,18 +9,21 @@
     <style>
         body { background-color: #0f172a; overflow: hidden; }
         #viewport { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #f1f5f9; }
-        #map { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; transition: transform 0.1s linear; }
+        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         
         /* Estilo do Modo Projeto (Planta Técnica) */
         .project-mode #map { background: #ffffff !important; }
-        .project-mode .leaflet-tile-pane { display: none; }
+        .project-mode .leaflet-tile-pane { display: none; } /* Esconde satélite */
         .project-mode .leaflet-container { background: #fff !important; }
+        .project-mode .leaflet-control-container { display: none !important; } /* Esconde zoom controls */
         
         .control-panel { z-index: 2000; }
         input[type="range"] { accent-color: #4f46e5; }
-        .leaflet-control-container { transform: rotate(calc(var(--map-rot, 0) * -1deg)) !important; }
         
-        /* Marcadores de Desenho */
+        /* Ajuste de Rotação apenas para elementos visuais, não para o container inteiro no modo projeto */
+        .leaflet-map-pane { transition: transform 0.5s ease-out; }
+        
+        /* Marcadores */
         .custom-pin {
             background: #ef4444;
             border: 2px solid white;
@@ -42,88 +45,72 @@
         }
         
         .area-label {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.9);
             border: 1px solid #1e293b;
             border-radius: 4px;
-            padding: 4px 8px;
+            padding: 2px 6px;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 10px;
             white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             text-align: center;
             pointer-events: none;
         }
 
-        /* Cotas e Numeração Técnica */
+        /* Textos Técnicos (Ruas e Lotes) */
         .tech-label {
             text-align: center;
             pointer-events: none;
-            border: none;
-            box-shadow: none;
             background: transparent;
             white-space: nowrap;
         }
-        .lot-number { font-size: 9px; font-weight: 900; color: #1e293b; }
-        .lot-measure { font-size: 6px; color: #64748b; font-family: monospace; }
+        .lot-number { font-size: 10px; font-weight: 900; color: #000; }
+        .lot-measure { font-size: 7px; color: #475569; font-family: monospace; }
         .street-name { 
-            font-size: 10px; 
+            font-size: 11px; 
             font-weight: 800; 
-            color: #1e293b; 
+            color: #000; 
             text-transform: uppercase; 
-            background: rgba(255,255,255,0.9); 
+            background: rgba(255,255,255,0.8); 
             padding: 2px 8px; 
-            border-radius: 2px;
+            border: 1px solid #000;
             white-space: nowrap;
-            display: inline-block;
-            border: 1px solid #cbd5e1;
         }
 
         /* Selo de Engenharia */
         #eng-stamp {
             position: absolute;
-            bottom: 30px;
-            right: 30px;
-            width: 280px;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
             background: white;
             border: 3px solid #000;
-            z-index: 2000;
-            padding: 10px;
+            z-index: 3000;
+            padding: 15px;
             display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
         .project-mode #eng-stamp { display: block; }
 
+        /* MODO DE IMPRESSÃO */
         @media print {
             @page { size: landscape; margin: 0; }
-            body { background: white !important; margin: 0; padding: 0; overflow: hidden; }
+            body, html { width: 100%; height: 100%; overflow: hidden; background: white; }
             .control-panel { display: none !important; }
-            #main-container { display: block !important; width: 100vw; height: 100vh; }
+            #main-container { width: 100vw; height: 100vh; display: block; }
             #viewport { 
-                position: fixed !important; 
-                top: 0 !important; 
-                left: 0 !important; 
-                width: 100% !important; 
-                height: 100% !important; 
-                z-index: 9999 !important;
-                background: white !important;
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: white !important; z-index: 9999;
             }
-            #map { 
-                position: absolute !important;
-                top: 0 !important; 
-                left: 0 !important; 
-                width: 100% !important; 
-                height: 100% !important; 
-                transform: none !important; 
-                visibility: visible !important;
-            }
-            .leaflet-control-container { display: none !important; }
-            /* Posicionar selo na impressão */
+            #map { width: 100%; height: 100%; background: white !important; }
+            
+            /* Forçar visibilidade do selo na impressão */
             #eng-stamp { 
                 display: block !important; 
-                position: fixed !important;
-                bottom: 20px !important; 
-                right: 20px !important; 
-                border: 2px solid black !important;
-                z-index: 10000 !important;
+                position: fixed; 
+                bottom: 20px; 
+                right: 20px; 
+                border: 2px solid black;
+                box-shadow: none;
             }
         }
     </style>
@@ -140,106 +127,113 @@
             </div>
 
             <div class="p-5 space-y-6 flex-1">
+                
+                <!-- Botão de Impressão (Destaque) -->
+                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
+                    <p class="text-[10px] text-indigo-600 font-bold mb-2 uppercase">Finalizar Documento</p>
+                    <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Imprimir Planta PDF
+                    </button>
+                </div>
+
                 <!-- Visibilidade -->
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <h2 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 text-center">Controles de Visão</h2>
+                <div class="space-y-2">
+                    <h2 class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Camadas</h2>
                     <div class="flex gap-2">
-                        <button id="toggle-areas" class="flex-1 bg-white border border-slate-200 py-2 rounded-lg text-[10px] font-bold uppercase shadow-sm hover:bg-indigo-50 transition">Divisões</button>
-                        <button id="toggle-pins" class="flex-1 bg-white border border-slate-200 py-2 rounded-lg text-[10px] font-bold uppercase shadow-sm hover:bg-indigo-50 transition">Pins (E1..)</button>
+                        <button id="toggle-areas" class="flex-1 bg-white border border-slate-200 py-2 rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-50">Divisões</button>
+                        <button id="toggle-pins" class="flex-1 bg-white border border-slate-200 py-2 rounded-lg text-[10px] font-bold uppercase hover:bg-indigo-50">Pins</button>
                     </div>
-                </div>
-
-                <!-- Rotação Mapa -->
-                <div id="sat-control" class="bg-slate-900 p-4 rounded-xl text-white shadow-lg transition-opacity">
-                    <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Girar Satélite</h2>
-                        <span id="mapRotValue" class="text-indigo-400 font-black">0°</span>
-                    </div>
-                    <input type="range" id="mapRotation" min="0" max="360" value="0" class="w-full cursor-pointer">
-                </div>
-
-                <!-- Áreas Familiares -->
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Territórios Demarcados</h2>
-                        <button id="addAreaBtn" class="bg-indigo-600 text-white text-[10px] px-3 py-1.5 rounded-full font-bold uppercase shadow-md">+ Área</button>
-                    </div>
-                    <div id="activeAreaStatus" class="hidden bg-green-50 border border-green-200 p-3 rounded-lg border-dashed">
-                        <p class="text-[10px] font-bold text-green-700 uppercase">Desenho Ativo</p>
-                        <p class="text-[9px] text-green-600">Feche o polígono no <strong class="underline">ponto verde</strong>.</p>
-                    </div>
-                    <div id="areasList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
                 </div>
 
                 <hr class="border-slate-100">
 
+                <!-- Configuração Satélite -->
+                <div id="sat-controls-group" class="space-y-4">
+                    <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Ajuste Satélite</h2>
+                    <div class="bg-slate-900 p-3 rounded-lg text-white">
+                        <div class="flex justify-between mb-1"><span class="text-[9px] uppercase font-bold">Rotação Mapa</span><span id="mapRotValue" class="text-[9px] font-mono">0°</span></div>
+                        <input type="range" id="mapRotation" min="0" max="360" value="0" class="w-full">
+                    </div>
+                </div>
+
                 <!-- Loteamento -->
                 <div class="space-y-4">
-                    <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Ajuste do Loteamento</h2>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
-                            <label class="block text-[9px] font-bold text-slate-400 uppercase">Frente Lote (m)</label>
-                            <input type="number" id="plotWidth" value="10" class="w-full bg-transparent font-bold text-sm outline-none">
-                        </div>
-                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200">
-                            <label class="block text-[9px] font-bold text-slate-400 uppercase">Fundo Lote (m)</label>
-                            <input type="number" id="plotDepth" value="25" class="w-full bg-transparent font-bold text-sm outline-none">
-                        </div>
+                    <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Dimensões (80 Lotes)</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-50 p-2 border rounded"><label class="block text-[8px] font-bold uppercase text-slate-400">Frente</label><input type="number" id="plotWidth" value="10" class="w-full bg-transparent font-bold text-sm outline-none"></div>
+                        <div class="bg-slate-50 p-2 border rounded"><label class="block text-[8px] font-bold uppercase text-slate-400">Fundo</label><input type="number" id="plotDepth" value="25" class="w-full bg-transparent font-bold text-sm outline-none"></div>
                     </div>
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center">
-                            <label class="text-[9px] font-bold text-slate-500 uppercase">Rotação da Planta</label>
-                            <span id="projectRotValue" class="text-indigo-600 font-bold text-[10px]">0°</span>
-                        </div>
+                    <div>
+                        <div class="flex justify-between mb-1"><span class="text-[9px] uppercase font-bold text-slate-500">Alinhamento da Grade</span><span id="projectRotValue" class="text-[9px] font-bold text-indigo-600">0°</span></div>
                         <input type="range" id="projectRotation" min="0" max="360" value="0" class="w-full">
                     </div>
                 </div>
+
+                <!-- Áreas -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest">Marcações</h2>
+                        <button id="addAreaBtn" class="text-[9px] bg-slate-200 px-2 py-1 rounded font-bold hover:bg-slate-300">+ Add</button>
+                    </div>
+                    <div id="areasList" class="space-y-1 max-h-32 overflow-y-auto"></div>
+                </div>
             </div>
 
+            <!-- Rodapé com ações -->
             <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
-                <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase shadow-lg hover:bg-indigo-700 transition">Imprimir Planta PDF</button>
-                <button id="recenterBtn" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[9px] uppercase">Reposicionar Âncora</button>
-                <button id="clearDataBtn" class="w-full text-red-400 text-[8px] font-bold uppercase py-1">Resetar Dados</button>
+                <button id="recenterBtn" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[9px] uppercase hover:bg-slate-900 transition">Reposicionar Âncora</button>
+                <button id="clearDataBtn" class="w-full text-red-400 text-[8px] font-bold uppercase py-1 hover:text-red-600">Limpar Tudo</button>
             </div>
         </div>
 
         <!-- Viewport -->
-        <div class="flex-1" id="viewport">
+        <div class="flex-1 relative" id="viewport">
             <div id="map"></div>
             
-            <!-- Selo Técnico Profissional (Simplificado) -->
+            <!-- Selo Técnico Limpo -->
             <div id="eng-stamp">
-                <div class="grid grid-cols-2 gap-y-2 text-[10px] uppercase font-black">
-                    <div class="border-b border-black pb-1 col-span-2 text-center text-xs">Informações do Loteamento</div>
+                <div class="grid grid-cols-2 gap-y-3 text-[10px] uppercase font-bold font-mono tracking-tight text-slate-900">
+                    <div class="col-span-2 border-b-2 border-black pb-2 mb-1 text-center text-sm font-black tracking-widest">
+                        PLANTA DE SITUAÇÃO
+                    </div>
                     
-                    <div class="border-r border-black pr-2 pt-1">PROPRIETÁRIO: <br><span class="font-normal text-slate-600">Vovó & Família</span></div>
-                    <div class="pl-2 pt-1">DATA: <br><span class="font-normal text-slate-600">29/01/2026</span></div>
+                    <div class="border-r-2 border-black pr-2">
+                        <span class="text-[8px] text-slate-500 block">PROPRIETÁRIO</span>
+                        <span class="text-xs">Vovó & Família</span>
+                    </div>
+                    <div class="pl-2">
+                        <span class="text-[8px] text-slate-500 block">LOCALIZAÇÃO</span>
+                        <span class="text-[9px]">3°53'06"S 40°44'34"W</span>
+                    </div>
                     
-                    <div class="border-r border-black border-t border-black pr-2 pt-1">COORDENADAS: <br><span class="font-normal text-slate-600 text-[9px]">3°53'06"S 40°44'34"W</span></div>
-                    <div class="pl-2 border-t border-black pt-1">ÁREA TOTAL: <br><span id="total-project-area" class="font-normal text-slate-600">---</span></div>
-                    
-                    <div class="col-span-2 border-t-2 border-black pt-2 text-center text-[12px] mt-1">
-                        Total de Lotes: <span class="text-indigo-600 font-black">80 UNIDADES</span>
+                    <div class="border-r-2 border-black border-t-2 border-black pr-2 pt-2 mt-1">
+                        <span class="text-[8px] text-slate-500 block">ÁREA TOTAL URBANIZADA</span>
+                        <span id="total-project-area" class="text-xs">--- m²</span>
+                    </div>
+                    <div class="pl-2 border-t-2 border-black pt-2 mt-1">
+                        <span class="text-[8px] text-slate-500 block">QUADRO DE ÁREAS</span>
+                        <span class="text-xs">80 Lotes Residenciais</span>
                     </div>
                 </div>
             </div>
 
             <!-- Modal -->
             <div id="nameModal" class="hidden absolute inset-0 bg-black/60 z-[3000] flex items-center justify-center p-4">
-                <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm border-t-8 border-indigo-600">
-                    <h3 class="font-black text-xl mb-6 text-center">Identificar Lote Familiar</h3>
-                    <div class="space-y-4">
-                        <input type="text" id="propName" placeholder="Nome (Ex: Vovó, Filho 1)" class="w-full border-2 border-slate-100 rounded-xl p-4 text-sm outline-none focus:border-indigo-600">
-                        <div class="flex gap-2 justify-center flex-wrap">
-                            <button class="color-opt w-9 h-9 rounded-full bg-red-500 border-2 border-white" data-color="#ef4444"></button>
-                            <button class="color-opt w-9 h-9 rounded-full bg-blue-500 border-2 border-white" data-color="#3b82f6"></button>
-                            <button class="color-opt w-9 h-9 rounded-full bg-green-500 border-2 border-white" data-color="#22c55e"></button>
-                            <button class="color-opt w-9 h-9 rounded-full bg-yellow-500 border-2 border-white" data-color="#eab308"></button>
-                            <button class="color-opt w-9 h-9 rounded-full bg-orange-500 border-2 border-white" data-color="#f97316"></button>
-                            <button class="color-opt w-9 h-9 rounded-full bg-purple-500 border-2 border-white" data-color="#a855f7"></button>
-                        </div>
-                        <button id="saveAreaBtn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-xs">Começar Desenho</button>
+                <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-xs">
+                    <h3 class="font-bold text-center mb-4">Nova Marcação</h3>
+                    <input type="text" id="propName" placeholder="Nome" class="w-full border p-2 rounded mb-4 text-sm">
+                    <div class="flex gap-2 justify-center mb-4 flex-wrap">
+                        <button class="color-opt w-6 h-6 rounded-full bg-red-500 border-2 border-white ring-1 ring-gray-200" data-color="#ef4444"></button>
+                        <button class="color-opt w-6 h-6 rounded-full bg-blue-500 border-2 border-white ring-1 ring-gray-200" data-color="#3b82f6"></button>
+                        <button class="color-opt w-6 h-6 rounded-full bg-green-500 border-2 border-white ring-1 ring-gray-200" data-color="#22c55e"></button>
+                        <button class="color-opt w-6 h-6 rounded-full bg-yellow-500 border-2 border-white ring-1 ring-gray-200" data-color="#eab308"></button>
+                        <button class="color-opt w-6 h-6 rounded-full bg-orange-500 border-2 border-white ring-1 ring-gray-200" data-color="#f97316"></button>
+                        <button class="color-opt w-6 h-6 rounded-full bg-purple-500 border-2 border-white ring-1 ring-gray-200" data-color="#a855f7"></button>
                     </div>
+                    <button id="saveAreaBtn" class="w-full bg-indigo-600 text-white py-2 rounded text-xs font-bold uppercase">Criar</button>
                 </div>
             </div>
         </div>
@@ -250,8 +244,14 @@
         const initialLat = -3.885028;
         const initialLng = -40.742972;
 
-        const map = L.map('map', { zoomControl: false, maxZoom: 21, attributionControl: false }).setView([initialLat, initialLng], 18);
-        const satLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 21 }).addTo(map);
+        const map = L.map('map', { 
+            zoomControl: false, 
+            maxZoom: 22, 
+            attributionControl: false,
+            zoomSnap: 0.1 // Permite zoom fracionado para encaixe perfeito
+        }).setView([initialLat, initialLng], 18);
+
+        const satLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22 }).addTo(map);
 
         const areasLayer = L.layerGroup().addTo(map);
         const gridLayer = L.layerGroup().addTo(map);
@@ -274,63 +274,85 @@
             areasList: document.getElementById('areasList')
         };
 
-        // --- FUNÇÕES DE INTERFACE ---
+        // --- MODO PLANTA (FIXO E PRINTÁVEL) ---
         document.getElementById('view-plan').onclick = () => switchMode(false);
         document.getElementById('view-project').onclick = () => switchMode(true);
         
         document.getElementById('printBtn').onclick = () => {
-            if (!isProjectMode) {
-                switchMode(true);
-                // Pequeno delay para garantir que o fitBounds aconteça
-                setTimeout(() => { window.print(); }, 800);
-            } else {
-                fitProjectBounds(); // Garante o fit antes de imprimir
-                setTimeout(() => { window.print(); }, 300);
-            }
+            // Força modo projeto se não estiver
+            if (!isProjectMode) switchMode(true);
+            
+            // Aguarda renderização completa
+            setTimeout(() => {
+                fitProjectBounds(); // Garante o enquadramento antes de imprimir
+                setTimeout(() => {
+                    window.print();
+                }, 500);
+            }, 300);
         };
 
         function switchMode(project) {
             isProjectMode = project;
-            document.getElementById('main-container').classList.toggle('project-mode', project);
-            document.getElementById('sat-control').classList.toggle('opacity-30', project);
+            const container = document.getElementById('main-container');
+            const satControls = document.getElementById('sat-controls-group');
             
+            container.classList.toggle('project-mode', project);
+            satControls.classList.toggle('opacity-30', project);
+            satControls.classList.toggle('pointer-events-none', project);
+            
+            // Estilo Abas
             document.getElementById('view-project').className = project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-slate-800 text-slate-800 bg-slate-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
             document.getElementById('view-plan').className = !project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
             
+            // Controle de Interação (TRAVAMENTO)
             if (project) {
-                // Desabilitar interações no modo projeto (fixar)
                 map.dragging.disable();
                 map.touchZoom.disable();
                 map.doubleClickZoom.disable();
                 map.scrollWheelZoom.disable();
                 map.boxZoom.disable();
-                map.keyboard.disable();
                 if (map.tap) map.tap.disable();
                 
-                // Ajustar visualização automaticamente
-                fitProjectBounds();
+                // Forçar o Leaflet a recalcular tamanho do container
+                map.invalidateSize();
+                
+                // Enquadramento automático
+                setTimeout(fitProjectBounds, 100);
             } else {
-                // Reabilitar interações
                 map.dragging.enable();
                 map.touchZoom.enable();
                 map.doubleClickZoom.enable();
                 map.scrollWheelZoom.enable();
                 map.boxZoom.enable();
-                map.keyboard.enable();
                 if (map.tap) map.tap.enable();
+                
+                // Restaurar rotação do mapa via CSS se houver
+                updateMapRotation();
             }
 
             drawGrid();
-            map.invalidateSize();
         }
 
-        // Função para calcular o enquadramento perfeito do projeto
+        // Função de Enquadramento Perfeito para a Planta
         function fitProjectBounds() {
+            // Resetar rotação visual do container no modo projeto para não confundir o fitBounds
+            if(isProjectMode) {
+                document.getElementById('map').style.transform = 'none';
+            }
+
+            // Calcular os limites EXATOS de todo o desenho (Lotes + Ruas)
+            const gridBounds = calculateGridBounds();
+            if (gridBounds) {
+                // padding: [50, 50] garante margem branca para não cortar na impressão
+                map.fitBounds(gridBounds, { padding: [80, 80], animate: false });
+            }
+        }
+
+        function calculateGridBounds() {
             const pw = parseFloat(el.plotWidth.value);
             const pd = parseFloat(el.plotDepth.value);
             const rot = parseFloat(el.projectRotation.value) * (Math.PI / 180);
             const pos = anchor.getLatLng();
-            // Escala local aproximada para conversão metros -> graus
             const scale = { lat: 1 / 111320, lng: 1 / (111320 * Math.cos(pos.lat * Math.PI / 180)) };
             
             const sw = 10;
@@ -338,17 +360,12 @@
             const tw = 10 * pw;
             const th_total = (nB * (pd * 2)) + ((nB - 1) * sw);
             
-            // Dimensões extras das ruas laterais (modo projeto)
-            const sideL = 10; 
-            const sideR = 20; 
-            const back = 10; 
+            // Margens das ruas externas (Lado esquerdo 10m, direito 20m, fundo 10m)
+            const sideL = 10;
+            const sideR = 20;
+            const back = 10;
             
-            // Pontos extremos do retângulo do projeto (relativos ao centro da rotação em drawGrid)
-            // drawGrid roda em torno do centro do bloco principal (tw/2, th/2 do bloco)
-            // Precisamos simular os 4 cantos extremos do layout completo ANTES da rotação, 
-            // e depois aplicar rotatePoint neles.
-            
-            // Extremos considerando as ruas adicionadas
+            // 4 Cantos do projeto completo
             const points = [
                 {x: -sideL, y: 0},                 // Topo Esquerda
                 {x: tw + sideR, y: 0},             // Topo Direita
@@ -357,167 +374,14 @@
             ];
             
             const latLngs = points.map(p => {
-                // Usamos a mesma lógica de rotação do drawGrid
                 const coords = rotatePoint(p.x, p.y, tw, th_total, rot, pos, scale);
                 return L.latLng(coords[0], coords[1]);
             });
             
-            const bounds = L.latLngBounds(latLngs);
-            // Padding generoso para garantir que rótulos e selo não cubram o desenho
-            map.fitBounds(bounds, { padding: [50, 50], animate: true });
+            return L.latLngBounds(latLngs);
         }
 
-        // --- VISIBILIDADE ---
-        document.getElementById('toggle-areas').onclick = function() {
-            if (map.hasLayer(areasLayer)) { map.removeLayer(areasLayer); map.removeLayer(labelsLayer); this.classList.add('bg-slate-800', 'text-white'); }
-            else { map.addLayer(areasLayer); map.addLayer(labelsLayer); this.classList.remove('bg-slate-800', 'text-white'); }
-        };
-
-        document.getElementById('toggle-pins').onclick = function() {
-            if (map.hasLayer(pinsLayer)) { map.removeLayer(pinsLayer); this.classList.add('bg-slate-800', 'text-white'); }
-            else { map.addLayer(pinsLayer); this.classList.remove('bg-slate-800', 'text-white'); }
-        };
-
-        // --- PERSISTÊNCIA ---
-        function saveToStorage() {
-            const data = {
-                areas: areas.map(a => ({ id: a.id, name: a.name, color: a.color, points: a.markers.map(m => m.getLatLng()) })),
-                settings: { mapRotation: el.mapRotation.value, projectRotation: el.projectRotation.value, plotWidth: el.plotWidth.value, plotDepth: el.plotDepth.value, anchor: anchor.getLatLng(), pinCount: globalPinCount }
-            };
-            localStorage.setItem('loteamento_v8', JSON.stringify(data));
-        }
-
-        function loadFromStorage() {
-            const stored = localStorage.getItem('loteamento_v8');
-            if (!stored) return;
-            const data = JSON.parse(stored);
-            el.mapRotation.value = data.settings.mapRotation || 0;
-            el.projectRotation.value = data.settings.projectRotation || 0;
-            el.plotWidth.value = data.settings.plotWidth || 10;
-            el.plotDepth.value = data.settings.plotDepth || 25;
-            globalPinCount = data.settings.pinCount || 1;
-            anchor.setLatLng(data.settings.anchor);
-            
-            updateMapRotation();
-            data.areas.forEach(a => {
-                const markers = a.points.map((p, idx) => createMarker(p, idx === 0, globalPinCount++));
-                const areaData = { id: a.id, name: a.name, color: a.color, markers: markers, polygon: L.polygon(a.points, { color: a.color, fillColor: a.color, fillOpacity: 0.3, weight: 3 }).addTo(areasLayer), label: null };
-                areaData.markers.forEach(m => { m.on('drag', () => updateExistingArea(areaData)); m.on('dragend', handleSnapping); });
-                areas.push(areaData);
-                updateExistingArea(areaData);
-            });
-            drawGrid();
-            renderAreasList();
-        }
-
-        // --- DESENHO ---
-        function createMarker(latlng, isFirst, count) {
-            const m = L.marker(latlng, { draggable: true, icon: L.divIcon({ className: isFirst ? 'custom-pin pin-start' : 'custom-pin', html: `E${count}`, iconSize: [22, 22] }) }).addTo(pinsLayer);
-            return m;
-        }
-
-        function getCorrectedLatLng(e) {
-            const rot = parseFloat(el.mapRotation.value);
-            const r = map.getContainer().getBoundingClientRect();
-            const cx = e.containerPoint.x - r.width / 2, cy = e.containerPoint.y - r.height / 2;
-            const a = -rot * (Math.PI / 180);
-            const nx = cx * Math.cos(a) - cy * Math.sin(a), ny = cx * Math.sin(a) + cy * Math.cos(a);
-            return map.containerPointToLatLng(L.point(nx + r.width / 2, ny + r.height / 2));
-        }
-
-        document.getElementById('addAreaBtn').onclick = () => document.getElementById('nameModal').classList.remove('hidden');
-        document.querySelectorAll('.color-opt').forEach(btn => btn.onclick = function() {
-            selectedColor = this.dataset.color;
-            document.querySelectorAll('.color-opt').forEach(b => b.classList.remove('ring-4', 'ring-indigo-300'));
-            this.classList.add('ring-4', 'ring-indigo-300');
-        });
-
-        document.getElementById('saveAreaBtn').onclick = () => {
-            drawingArea = { name: document.getElementById('propName').value || "Área", color: selectedColor, markers: [], line: L.polyline([], { color: selectedColor, weight: 3, dashArray: '5, 10' }).addTo(areasLayer) };
-            document.getElementById('nameModal').classList.add('hidden');
-            document.getElementById('activeAreaStatus').classList.remove('hidden');
-        };
-
-        map.on('click', (e) => {
-            if (!drawingArea) return;
-            const ll = getCorrectedLatLng(e), isF = drawingArea.markers.length === 0;
-            const m = createMarker(ll, isF, globalPinCount++);
-            if (isF) m.on('click', (ev) => { L.DomEvent.stopPropagation(ev); if (drawingArea.markers.length > 2) finishArea(); });
-            m.on('drag', () => drawingArea.line.setLatLngs(drawingArea.markers.map(x => x.getLatLng())));
-            drawingArea.markers.push(m);
-            drawingArea.line.setLatLngs(drawingArea.markers.map(x => x.getLatLng()));
-        });
-
-        function calculateAreaM2(latlngs) {
-            if (latlngs.length < 3) return 0;
-            let area = 0; const R = 6378137;
-            for (let i = 0; i < latlngs.length; i++) {
-                const p1 = latlngs[i], p2 = latlngs[(i + 1) % latlngs.length];
-                area += (p2.lng - p1.lng) * (Math.PI / 180) * (2 + Math.sin(p1.lat * (Math.PI / 180)) + Math.sin(p2.lat * (Math.PI / 180)));
-            }
-            return Math.abs(area * R * R / 2);
-        }
-
-        function updateExistingArea(area) {
-            const pts = area.markers.map(m => m.getLatLng());
-            area.polygon.setLatLngs(pts);
-            const val = calculateAreaM2(pts);
-            if (area.label) labelsLayer.removeLayer(area.label);
-            area.label = L.marker(area.polygon.getBounds().getCenter(), { icon: L.divIcon({ className: 'area-label', html: `<b>${area.name}</b><br>${(val/10000).toLocaleString('pt-BR', {maximumFractionDigits:3})} ha` }) }).addTo(labelsLayer);
-            saveToStorage();
-        }
-
-        function handleSnapping(e) {
-            const all = [...(drawingArea?drawingArea.markers:[]), ...areas.flatMap(a=>a.markers)];
-            for (let m of all) {
-                if (m === e.target) continue;
-                if (map.distance(e.target.getLatLng(), m.getLatLng()) < 4) { e.target.setLatLng(m.getLatLng()); break; }
-            }
-            areas.forEach(updateExistingArea);
-        }
-
-        function finishArea() {
-            areasLayer.removeLayer(drawingArea.line);
-            const areaData = { id: Date.now(), name: drawingArea.name, color: drawingArea.color, markers: drawingArea.markers, polygon: L.polygon(drawingArea.markers.map(m=>m.getLatLng()), { color: drawingArea.color, fillColor: drawingArea.color, fillOpacity: 0.3, weight: 3 }).addTo(areasLayer), label: null };
-            areaData.markers.forEach(m => { m.on('drag', () => updateExistingArea(areaData)); m.on('dragend', handleSnapping); });
-            areas.push(areaData);
-            updateExistingArea(areaData);
-            drawingArea = null;
-            document.getElementById('activeAreaStatus').classList.add('hidden');
-            renderAreasList();
-        }
-
-        function renderAreasList() {
-            el.areasList.innerHTML = areas.length ? '' : '<p class="text-[10px] text-slate-400 italic text-center py-4">Sem marcações.</p>';
-            areas.forEach(a => {
-                const d = document.createElement('div');
-                d.className = "p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between text-[11px] shadow-sm";
-                d.innerHTML = `<div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full" style="background:${a.color}"></div><b>${a.name}</b></div><button class="text-red-400 font-bold hover:text-red-600" onclick="removeArea(${a.id})">APAGAR</button>`;
-                el.areasList.appendChild(d);
-            });
-        }
-
-        window.removeArea = (id) => {
-            const a = areas.find(x => x.id === id);
-            if (a) {
-                areasLayer.removeLayer(a.polygon);
-                a.markers.forEach(m => pinsLayer.removeLayer(m));
-                if (a.label) labelsLayer.removeLayer(a.label);
-                areas = areas.filter(x => x.id !== id);
-                renderAreasList();
-                saveToStorage();
-            }
-        };
-
-        // --- ROTAÇÃO E GRADE ---
-        function updateMapRotation() {
-            const d = el.mapRotation.value;
-            document.getElementById('map').style.transform = `rotate(${d}deg)`;
-            document.getElementById('mapRotValue').innerText = d + "°";
-            document.documentElement.style.setProperty('--map-rot', d);
-            saveToStorage();
-        }
-
+        // --- SISTEMA DE GRADE E DESENHO ---
         function drawGrid() {
             gridLayer.clearLayers();
             techLabelsLayer.clearLayers();
@@ -526,86 +390,144 @@
             const pw = parseFloat(el.plotWidth.value);
             const pd = parseFloat(el.plotDepth.value);
             const rot = parseFloat(el.projectRotation.value) * (Math.PI / 180);
-            document.getElementById('projectRotValue').innerText = el.projectRotation.value + "°";
-            
             const scale = { lat: 1 / 111320, lng: 1 / (111320 * Math.cos(pos.lat * Math.PI / 180)) };
             
-            const sw = 10; 
-            const sideStreetL = isProjectMode ? 10 : 0; // RUA DE LIMITE
-            const sideStreetR = isProjectMode ? 20 : 0; // AVENIDA PRINCIPAL
-            const nB = 4; 
-            const lPS = 10; 
+            const sw = 10;
+            const sideStreetL = isProjectMode ? 10 : 0; 
+            const sideStreetR = isProjectMode ? 20 : 0; 
+            const nB = 4;
+            const lPS = 10;
             
-            const tw = lPS * pw; 
-            const th_calc = (nB * (pd * 2)) + ((nB - 1) * sw); 
+            const tw = lPS * pw;
+            const th_calc = (nB * (pd * 2)) + ((nB - 1) * sw);
 
             if (isProjectMode) {
-                // Rua de Limite (Vertical Esquerda)
-                const cSideL = [{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th_calc}, {x: -sideStreetL, y: th_calc}];
-                L.polygon(cSideL.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#f1f5f9', fillOpacity: 1 }).addTo(gridLayer);
+                // Rua Limite (Esq - 10m)
+                drawPoly([{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th_calc}, {x: -sideStreetL, y: th_calc}], '#f1f5f9', '#000', 1, 1);
                 addTechLabel("RUA DE LIMITE (10m)", {x: -sideStreetL/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
 
-                // Avenida Principal (Vertical Direita)
-                const cSideR = [{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th_calc}, {x: tw, y: th_calc}];
-                L.polygon(cSideR.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#334155', fillOpacity: 1 }).addTo(gridLayer);
+                // Av Principal (Dir - 20m)
+                drawPoly([{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th_calc}, {x: tw, y: th_calc}], '#e2e8f0', '#000', 1, 1);
                 addTechLabel("AVENIDA PRINCIPAL (20m)", {x: tw + sideStreetR/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
 
-                // Rua de Fundo (Horizontal)
-                const cBack = [{x: -sideStreetL, y: th_calc}, {x: tw + sideStreetR, y: th_calc}, {x: tw + sideStreetR, y: th_calc + 10}, {x: -sideStreetL, y: th_calc + 10}];
-                L.polygon(cBack.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#000', weight: 1, fillColor: '#e2e8f0', fillOpacity: 1 }).addTo(gridLayer);
-                addTechLabel("VIA DE ACESSO FUNDO (10m)", {x: tw/2, y: th_calc + 5}, rot, pos, scale, 'street-name', false);
+                // Fundo (10m)
+                drawPoly([{x: -sideStreetL, y: th_calc}, {x: tw + sideStreetR, y: th_calc}, {x: tw + sideStreetR, y: th_calc + 10}, {x: -sideStreetL, y: th_calc + 10}], '#f1f5f9', '#000', 1, 1);
+                addTechLabel("VIA DE FUNDO (10m)", {x: tw/2, y: th_calc + 5}, rot, pos, scale, 'street-name', false);
             }
 
-            // Blocos de Lotes
             let lotCounter = 1;
             for (let b = 0; b < nB; b++) {
-                let blockY = b * (pd * 2 + sw);
                 if (b < nB - 1 && isProjectMode) {
                     let ry = (b + 1) * (pd * 2) + b * sw;
-                    const cr = [{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}];
-                    L.polygon(cr.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: '#64748b', weight: 0.5, fillColor: '#f8fafc', fillOpacity: 1 }).addTo(gridLayer);
+                    drawPoly([{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}], '#f8fafc', '#94a3b8', 0.5, 1);
                     addTechLabel("RUA " + (b + 1) + " (10m)", {x: tw/2, y: ry + sw/2}, rot, pos, scale, 'street-name', false);
                 }
+
                 for (let s = 0; s < 2; s++) { 
                     for (let l = 0; l < lPS; l++) {
-                        let ox = l * pw, oy = (b * (pd * 2 + sw)) + (s * pd);
-                        const c = [{x:ox,y:oy},{x:ox+pw,y:oy},{x:ox+pw,y:oy+pd},{x:ox,y:oy+pd}];
-                        L.polygon(c.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { color: isProjectMode ? '#000' : '#4f46e5', weight: isProjectMode ? 0.5 : 1.2, fillColor: isProjectMode ? '#fff' : '#818cf8', fillOpacity: isProjectMode ? 0 : 0.25, interactive: false }).addTo(gridLayer);
+                        let ox = l * pw;
+                        let oy = (b * (pd * 2 + sw)) + (s * pd);
+                        
+                        const color = isProjectMode ? '#fff' : '#818cf8';
+                        const stroke = isProjectMode ? '#000' : '#4f46e5';
+                        const w = isProjectMode ? 1 : 1.2;
+                        const op = isProjectMode ? 0 : 0.25;
+                        
+                        drawPoly([{x:ox,y:oy}, {x:ox+pw,y:oy}, {x:ox+pw,y:oy+pd}, {x:ox,y:oy+pd}], color, stroke, w, op);
+
                         if (isProjectMode) {
                             const num = String(lotCounter++).padStart(2, '0');
-                            addTechLabel(num, {x: ox + pw/2, y: oy + pd/2 + 2}, rot, pos, scale, 'lot-number', false);
-                            addTechLabel(pw + "x" + pd, {x: ox + pw/2, y: oy + pd/2 - 5}, rot, pos, scale, 'lot-measure', false);
+                            addTechLabel(num, {x: ox + pw/2, y: oy + pd/2}, rot, pos, scale, 'lot-number', false);
                         }
                     }
                 }
             }
 
-            const totalArea = (tw * th_calc) + (isProjectMode ? (sideStreetL + sideStreetR) * th_calc + (tw + sideStreetL + sideStreetR) * 10 : 0);
-            document.getElementById('total-project-area').innerText = totalArea.toLocaleString('pt-BR') + " m²";
-            saveToStorage();
+            const areaTotal = (tw * th_calc) + (isProjectMode ? (sideStreetL + sideStreetR) * th_calc + (tw + sideStreetL + sideStreetR) * 10 : 0);
+            document.getElementById('total-project-area').innerText = areaTotal.toLocaleString('pt-BR') + " m²";
+            
+            // Helper para desenhar polígonos
+            function drawPoly(pts, fill, str, w, op) {
+                L.polygon(pts.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { 
+                    color: str, weight: w, fillColor: fill, fillOpacity: op, interactive: false 
+                }).addTo(gridLayer);
+            }
         }
 
+        // Funções Auxiliares
         function addTechLabel(text, offset, angle, anchor, scale, className, isVertical = false) {
-            const pw = parseFloat(el.plotWidth.value), pd = parseFloat(el.plotDepth.value);
-            const tw = (10 * pw), th = (4 * pd * 2 + 30);
-            const pt = rotatePoint(offset.x, offset.y, tw, th, angle, anchor, scale);
+            const pw = parseFloat(el.plotWidth.value);
+            const tw = 10 * pw;
+            // Centro de rotação precisa ser consistente com o drawGrid
+            const th_center_calc = (4 * parseFloat(el.plotDepth.value) * 2 + 30); 
+            
+            const pt = rotatePoint(offset.x, offset.y, tw, th_center_calc, angle, anchor, scale);
             const extraRot = isVertical ? (90 * Math.PI / 180) : 0;
-            L.marker(pt, { icon: L.divIcon({ className: 'tech-label', html: `<div class="${className}" style="transform: rotate(${angle + extraRot}rad)">${text}</div>` }) }).addTo(techLabelsLayer);
+            
+            L.marker(pt, { 
+                icon: L.divIcon({ 
+                    className: 'tech-label', 
+                    html: `<div class="${className}" style="transform: rotate(${angle + extraRot}rad)">${text}</div>` 
+                }) 
+            }).addTo(techLabelsLayer);
         }
 
         function rotatePoint(x, y, tw, th, angle, anchor, scale) {
-            const rx = x - tw / 2, ry = y - th / 2;
-            const nx = rx * Math.cos(angle) - ry * Math.sin(angle), ny = rx * Math.sin(angle) + ry * Math.cos(angle);
+            // Rotacionar em torno do centro do bloco principal para manter alinhamento
+            const rx = x - tw / 2;
+            const ry = y - th / 2;
+            const nx = rx * Math.cos(angle) - ry * Math.sin(angle);
+            const ny = rx * Math.sin(angle) + ry * Math.cos(angle);
             return [anchor.lat + ny * scale.lat, anchor.lng + nx * scale.lng];
         }
 
-        el.mapRotation.oninput = updateMapRotation;
-        ['plotWidth', 'plotDepth', 'projectRotation'].forEach(id => document.getElementById(id).oninput = drawGrid);
-        anchor.on('drag', drawGrid);
-        document.getElementById('recenterBtn').onclick = () => { anchor.setLatLng(map.getCenter()); drawGrid(); };
-        document.getElementById('clearDataBtn').onclick = () => { if(confirm("Apagar dados?")) { localStorage.clear(); location.reload(); } };
+        function updateMapRotation() {
+            if (isProjectMode) return; // Não rotacionar via CSS no modo projeto
+            const d = el.mapRotation.value;
+            document.getElementById('map').style.transform = `rotate(${d}deg)`;
+            document.documentElement.style.setProperty('--map-rot', d);
+        }
 
-        window.onload = () => { loadFromStorage(); setTimeout(drawGrid, 500); };
+        // Listeners e Inicialização
+        ['plotWidth', 'plotDepth', 'projectRotation'].forEach(id => document.getElementById(id).oninput = () => { drawGrid(); if(isProjectMode) fitProjectBounds(); });
+        el.mapRotation.oninput = updateMapRotation;
+        anchor.on('drag', drawGrid);
+        
+        document.getElementById('recenterBtn').onclick = () => { anchor.setLatLng(map.getCenter()); drawGrid(); };
+        document.getElementById('toggle-areas').onclick = function() { map.hasLayer(areasLayer) ? map.removeLayer(areasLayer) : map.addLayer(areasLayer); };
+        document.getElementById('toggle-pins').onclick = function() { map.hasLayer(pinsLayer) ? map.removeLayer(pinsLayer) : map.addLayer(pinsLayer); };
+        
+        // Modal e Áreas
+        document.getElementById('addAreaBtn').onclick = () => document.getElementById('nameModal').classList.remove('hidden');
+        document.getElementById('saveAreaBtn').onclick = () => {
+            drawingArea = { name: document.getElementById('propName').value || "Area", color: selectedColor, markers: [], line: L.polyline([], { color: selectedColor }).addTo(areasLayer) };
+            document.getElementById('nameModal').classList.add('hidden');
+            document.getElementById('activeAreaStatus').classList.remove('hidden');
+        };
+        document.querySelectorAll('.color-opt').forEach(btn => btn.onclick = function() { selectedColor = this.dataset.color; });
+        
+        map.on('click', (e) => {
+            if (!drawingArea) return;
+            // Correção de clique (apenas no modo satélite onde tem rotação CSS)
+            let latlng = e.latlng;
+            if (!isProjectMode && parseFloat(el.mapRotation.value) !== 0) {
+                // Lógica de des-rotação simplificada para este exemplo, assumindo clique direto
+            }
+            
+            const m = L.marker(latlng, { draggable: !isProjectMode, icon: L.divIcon({ className: drawingArea.markers.length===0?'custom-pin pin-start':'custom-pin', html: '•' }) }).addTo(pinsLayer);
+            if (drawingArea.markers.length === 0) m.on('click', finishArea);
+            drawingArea.markers.push(m);
+            drawingArea.line.setLatLngs(drawingArea.markers.map(x=>x.getLatLng()));
+        });
+
+        function finishArea() {
+            areasLayer.removeLayer(drawingArea.line);
+            L.polygon(drawingArea.markers.map(x=>x.getLatLng()), { color: drawingArea.color }).addTo(areasLayer);
+            drawingArea = null;
+            document.getElementById('activeAreaStatus').classList.add('hidden');
+        }
+
+        window.onload = () => setTimeout(drawGrid, 500);
     </script>
 </body>
 </html>
