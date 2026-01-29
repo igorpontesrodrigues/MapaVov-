@@ -63,18 +63,23 @@
             background: transparent;
             white-space: nowrap;
         }
-        .lot-number { font-size: 9px; font-weight: 900; color: #000; }
-        .lot-measure { font-size: 7px; color: #475569; font-family: monospace; }
+        .lot-number { font-size: 10px; font-weight: 900; color: #000; display: block; margin-bottom: 2px; }
+        .lot-measure { font-size: 8px; color: #000; font-family: monospace; display: block; }
         .street-name { 
-            font-size: 12px; 
+            font-size: 11px; 
             font-weight: 900; 
-            color: #0f172a; 
+            color: #000; 
             text-transform: uppercase; 
-            background: transparent; /* Fundo transparente conforme pedido */
+            background: transparent; 
             padding: 0;
             white-space: nowrap;
             display: inline-block;
-            text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; /* Contorno branco sutil para leitura */
+            /* Pequeno contorno branco para garantir leitura sobre linhas */
+            text-shadow: 
+                -1px -1px 0 #fff,  
+                 1px -1px 0 #fff,
+                -1px  1px 0 #fff,
+                 1px  1px 0 #fff;
         }
 
         /* Selo de Engenharia */
@@ -92,9 +97,9 @@
         }
         .project-mode #eng-stamp { display: block; }
 
-        /* MODO DE IMPRESSÃO A4 */
+        /* MODO DE IMPRESSÃO A4 - RETRATO */
         @media print {
-            @page { size: A4 landscape; margin: 0mm; }
+            @page { size: A4 portrait; margin: 0mm; }
             body, html { width: 100%; height: 100%; overflow: hidden; background: white; margin: 0; padding: 0; }
             .control-panel { display: none !important; }
             #main-container { width: 100%; height: 100%; display: block; }
@@ -130,12 +135,12 @@
                 
                 <!-- Botão de Impressão (Destaque) -->
                 <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
-                    <p class="text-[10px] text-indigo-600 font-bold mb-2 uppercase">Finalizar Documento</p>
+                    <p class="text-[10px] text-indigo-600 font-bold mb-2 uppercase">Documento Técnico</p>
                     <button id="printBtn" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-black text-xs uppercase shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
-                        Imprimir Planta PDF (A4)
+                        Imprimir Planta (Retrato)
                     </button>
                 </div>
 
@@ -248,7 +253,7 @@
             zoomControl: false, 
             maxZoom: 22, 
             attributionControl: false,
-            zoomSnap: 0.1 // Permite zoom fracionado para encaixe perfeito
+            zoomSnap: 0.1 
         }).setView([initialLat, initialLng], 18);
 
         const satLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22 }).addTo(map);
@@ -279,13 +284,10 @@
         document.getElementById('view-project').onclick = () => switchMode(true);
         
         document.getElementById('printBtn').onclick = () => {
-            // Garante que estamos no modo projeto
             if (!isProjectMode) switchMode(true);
             
-            // Força o ajuste do zoom para caber tudo na tela/papel
             setTimeout(() => {
                 fitProjectBounds(); 
-                // Pequeno delay extra para renderização antes de abrir o diálogo
                 setTimeout(() => {
                     window.print();
                 }, 600);
@@ -305,7 +307,6 @@
             document.getElementById('view-project').className = project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-slate-800 text-slate-800 bg-slate-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
             document.getElementById('view-plan').className = !project ? "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50" : "flex-1 py-4 text-xs font-black uppercase tracking-widest border-b-4 border-transparent text-slate-400 hover:bg-slate-50";
             
-            // Controle de Interação (TRAVAMENTO)
             if (project) {
                 map.dragging.disable();
                 map.touchZoom.disable();
@@ -313,11 +314,7 @@
                 map.scrollWheelZoom.disable();
                 map.boxZoom.disable();
                 if (map.tap) map.tap.disable();
-                
-                // Forçar o Leaflet a recalcular tamanho do container
                 map.invalidateSize();
-                
-                // Enquadramento automático
                 setTimeout(fitProjectBounds, 100);
             } else {
                 map.dragging.enable();
@@ -326,25 +323,19 @@
                 map.scrollWheelZoom.enable();
                 map.boxZoom.enable();
                 if (map.tap) map.tap.enable();
-                
-                // Restaurar rotação do mapa via CSS se houver
                 updateMapRotation();
             }
 
             drawGrid();
         }
 
-        // Função de Enquadramento Perfeito para a Planta
+        // Função de Enquadramento
         function fitProjectBounds() {
-            // Resetar rotação visual do container no modo projeto para não confundir o fitBounds
             if(isProjectMode) {
                 document.getElementById('map').style.transform = 'none';
             }
-
-            // Calcular os limites EXATOS de todo o desenho (Lotes + Ruas)
             const gridBounds = calculateGridBounds();
             if (gridBounds) {
-                // padding: [50, 50] garante margem branca para não cortar na impressão
                 map.fitBounds(gridBounds, { padding: [50, 50], animate: false });
             }
         }
@@ -359,19 +350,16 @@
             const sw = 10;
             const nB = 4;
             const tw = 10 * pw;
-            // Altura total ajustada: (4 blocos * 50m) + (5 ruas de 10m) = 200 + 50 = 250m de altura do grid principal
             const th_total = (nB * (pd * 2)) + ((nB + 1) * sw);
             
-            // Margens das ruas externas (Lado esquerdo 10m, direito 20m)
             const sideL = 10;
             const sideR = 20;
             
-            // 4 Cantos do projeto completo
             const points = [
-                {x: -sideL, y: 0},                 // Topo Esquerda
-                {x: tw + sideR, y: 0},             // Topo Direita
-                {x: tw + sideR, y: th_total},      // Fundo Direita
-                {x: -sideL, y: th_total}           // Fundo Esquerda
+                {x: -sideL, y: 0},
+                {x: tw + sideR, y: 0},
+                {x: tw + sideR, y: th_total},
+                {x: -sideL, y: th_total}
             ];
             
             const latLngs = points.map(p => {
@@ -400,27 +388,29 @@
             const lPS = 10;
             
             const tw = lPS * pw;
-            // Altura total do loteamento (Ruas horizontais + Blocos)
-            // 5 Ruas Horizontais (10m) + 4 Blocos (50m cada)
             const th_calc = (nB * (pd * 2)) + ((nB + 1) * sw);
+
+            // Cores padronizadas para modo projeto
+            const streetFill = isProjectMode ? '#f8fafc' : '#fff';
+            const streetStroke = isProjectMode ? '#000' : '#94a3b8';
+            const streetWeight = isProjectMode ? 1 : 0.5;
+            const streetOp = isProjectMode ? 1 : 0.2;
 
             if (isProjectMode) {
                 // Rua Limite (Lateral Esquerda - 10m)
-                // Vai do topo (y=0) até o fim (y=th_calc)
-                drawPoly([{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th_calc}, {x: -sideStreetL, y: th_calc}], '#f1f5f9', '#000', 1, 1);
+                drawPoly([{x: -sideStreetL, y: 0}, {x: 0, y: 0}, {x: 0, y: th_calc}, {x: -sideStreetL, y: th_calc}], streetFill, streetStroke, streetWeight, streetOp);
                 addTechLabel("RUA DE FUNDO (10m)", {x: -sideStreetL/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
 
-                // Avenida Principal (Lateral Direita - 20m)
-                drawPoly([{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th_calc}, {x: tw, y: th_calc}], '#e2e8f0', '#000', 1, 1);
+                // Avenida Principal (Lateral Direita - 20m) - Mesma cor padronizada
+                drawPoly([{x: tw, y: 0}, {x: tw + sideStreetR, y: 0}, {x: tw + sideStreetR, y: th_calc}, {x: tw, y: th_calc}], streetFill, streetStroke, streetWeight, streetOp);
                 addTechLabel("AVENIDA PRINCIPAL (20m)", {x: tw + sideStreetR/2, y: th_calc/2}, rot, pos, scale, 'street-name', true);
             }
 
             // Desenhar as 5 Ruas Horizontais
-            // i=0 (Topo), i=1, i=2, i=3, i=4 (Fundo)
             for (let i = 0; i <= nB; i++) {
                 if (isProjectMode) {
                     let ry = i * (pd * 2 + sw);
-                    drawPoly([{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}], '#f8fafc', '#94a3b8', 0.5, 1);
+                    drawPoly([{x:0, y:ry}, {x:tw, y:ry}, {x:tw, y:ry+sw}, {x:0, y:ry+sw}], streetFill, streetStroke, streetWeight, streetOp);
                     addTechLabel("RUA " + (i + 1) + " (10m)", {x: tw/2, y: ry + sw/2}, rot, pos, scale, 'street-name', false);
                 }
             }
@@ -431,8 +421,6 @@
                 for (let s = 0; s < 2; s++) { 
                     for (let l = 0; l < lPS; l++) {
                         let ox = l * pw;
-                        // Y do lote = Rua Acima + Blocos Anteriores + Fileira Atual
-                        // b * (bloco + rua) + primeira rua + fileira
                         let oy = (b * (pd * 2 + sw)) + sw + (s * pd);
                         
                         const color = isProjectMode ? '#fff' : '#818cf8';
@@ -444,7 +432,8 @@
 
                         if (isProjectMode) {
                             const num = String(lotCounter++).padStart(2, '0');
-                            addTechLabel(num, {x: ox + pw/2, y: oy + pd/2}, rot, pos, scale, 'lot-number', false);
+                            const labelText = `<span class="lot-number">${num}</span><span class="lot-measure">${pw}x${pd}</span>`;
+                            addTechLabel(labelText, {x: ox + pw/2, y: oy + pd/2}, rot, pos, scale, 'text-center', false);
                         }
                     }
                 }
@@ -453,7 +442,6 @@
             const areaTotal = (tw * th_calc) + (isProjectMode ? (sideStreetL + sideStreetR) * th_calc : 0);
             document.getElementById('total-project-area').innerText = areaTotal.toLocaleString('pt-BR') + " m²";
             
-            // Helper para desenhar polígonos
             function drawPoly(pts, fill, str, w, op) {
                 L.polygon(pts.map(p => rotatePoint(p.x, p.y, tw, th_calc, rot, pos, scale)), { 
                     color: str, weight: w, fillColor: fill, fillOpacity: op, interactive: false 
@@ -502,7 +490,6 @@
         document.getElementById('toggle-areas').onclick = function() { map.hasLayer(areasLayer) ? map.removeLayer(areasLayer) : map.addLayer(areasLayer); };
         document.getElementById('toggle-pins').onclick = function() { map.hasLayer(pinsLayer) ? map.removeLayer(pinsLayer) : map.addLayer(pinsLayer); };
         
-        // Modal e Áreas
         document.getElementById('addAreaBtn').onclick = () => document.getElementById('nameModal').classList.remove('hidden');
         document.getElementById('saveAreaBtn').onclick = () => {
             drawingArea = { name: document.getElementById('propName').value || "Area", color: selectedColor, markers: [], line: L.polyline([], { color: selectedColor }).addTo(areasLayer) };
