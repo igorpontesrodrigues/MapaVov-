@@ -14,14 +14,17 @@
     </style>
     <style>
         :root {
-            /* Ajustado para 3.2px para preencher bem a folha A4 Paisagem com fontes maiores */
-            --scale-factor: 3.2px; 
+            /* Ajustado de 3.2px para 2.8px para garantir que a Rua A e Rua G cabem na folha A4 */
+            --scale-factor: 2.8px; 
             --street-color: #cf704c; /* Cor de telha/barro */
             --lot-border: #808080; /* Cercas cinzas */
             --lot-bg: #8ebf6a; /* Cor de grama */
             --text-color: #333;
             --street-text: #ffffff; /* Texto branco para ler melhor no barro */
             
+            /* Variável para a fonte da planta */
+            --main-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
             /* Fontes dinâmicas: crescem proporcionalmente ao tamanho da folha */
             --font-title: calc(8 * var(--scale-factor));
             --font-street: calc(3.8 * var(--scale-factor));
@@ -42,7 +45,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: var(--main-font); /* Agora usa a variável para permitir alterações */
             background-color: #eef2f5;
             margin: 0;
             padding: 20px;
@@ -50,6 +53,7 @@
             flex-direction: column;
             align-items: center;
             color: var(--text-color);
+            transition: font-family 0.3s ease;
         }
 
         /* --- UI Controls (Não impresso) --- */
@@ -69,10 +73,10 @@
             background-color: #2980b9;
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             transition: background 0.2s;
         }
@@ -90,15 +94,15 @@
         .control-group {
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 10px;
             margin-bottom: 10px;
             align-items: center;
             flex-wrap: wrap;
         }
 
         select, .btn-secondary {
-            padding: 10px 15px;
-            font-size: 15px;
+            padding: 10px 12px;
+            font-size: 14px;
             border-radius: 6px;
             border: 1px solid #ccc;
             cursor: pointer;
@@ -121,6 +125,8 @@
             display: inline-flex;
             flex-direction: column;
             align-items: center;
+            /* Garante que o container não encolhe abaixo do tamanho gerado pelo CSS Grid */
+            min-width: min-content; 
         }
 
         .header-info {
@@ -292,6 +298,8 @@
                 padding: 0;
                 border: none;
                 width: 100%;
+                /* Força a escala no modo de impressão caso o navegador tente redimensionar sozinho */
+                max-width: none;
             }
 
             /* Forçar preto e branco nítido, exceto se cor for importante */
@@ -308,16 +316,22 @@
     <div class="controls">
         <div class="control-group">
             <select id="paperSize" onchange="updateLayout()">
-                <option value="A4">Folha A4 (Padrão)</option>
-                <option value="A3">Folha A3 (Maior)</option>
-                <option value="A2">Folha A2 (Poster)</option>
-                <option value="A1">Folha A1 (Planta Grande)</option>
+                <option value="A4">Tamanho: Folha A4</option>
+                <option value="A3">Tamanho: Folha A3</option>
+                <option value="A2">Tamanho: Folha A2</option>
+                <option value="A1">Tamanho: Folha A1</option>
+            </select>
+            <select id="fontFamily" onchange="updateFont()">
+                <option value="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif">Fonte: Segoe UI (Moderna)</option>
+                <option value="Arial, Helvetica, sans-serif">Fonte: Arial (Clássica)</option>
+                <option value="'Times New Roman', Times, serif">Fonte: Times New Roman (Formal)</option>
+                <option value="'Courier New', Courier, monospace">Fonte: Courier New (Técnica)</option>
             </select>
             <button class="btn-secondary" onclick="toggleColor()">🎨 Cores / Preto e Branco</button>
             <button onclick="window.print()">🖨️ Imprimir Projeto</button>
         </div>
         <div class="instructions">
-            💡 Dica: Escolha o tamanho da folha antes de imprimir. O mapa e as fontes escalam automaticamente!
+            💡 Dica: Agora a Rua A e a Rua G cabem perfeitamente na folha A4. Podes também alterar a fonte principal!
         </div>
     </div>
 
@@ -406,8 +420,6 @@
         const dateSpan = document.getElementById('currentDate');
         const today = new Date();
         const formattedDate = today.toLocaleDateString('pt-BR');
-        // Se a data do sistema for muito diferente da query do usuario, usamos a data real
-        // Mas como pediste a data do dia, uso JS dinâmico:
         dateSpan.innerText = formattedDate;
 
         // Gerar Lotes
@@ -437,9 +449,14 @@
         generateLots('quadra5', 81);
         generateLots('quadra6', 101);
 
-        // Funções de Interação (Novas)
+        // Funções de Interação
         function toggleColor() {
             document.body.classList.toggle('bw-mode');
+        }
+
+        function updateFont() {
+            const font = document.getElementById('fontFamily').value;
+            document.documentElement.style.setProperty('--main-font', font);
         }
 
         function updateLayout() {
@@ -447,23 +464,21 @@
             const root = document.documentElement;
             const printStyle = document.getElementById('print-style');
             
-            // Fatores de escala ajustados para cada tamanho de papel para aproveitar a largura
-            let scale = 3.2; // A4
+            // Fatores de escala ajustados. 
+            // O A4 foi reduzido (de 3.2 para 2.8) para garantir a visibilidade das margens laterais (Rua A e G).
+            let scale = 2.8; 
             let margin = "0.8cm";
             
-            if (size === 'A3') { scale = 4.5; margin = "1cm"; }
-            if (size === 'A2') { scale = 6.4; margin = "1.5cm"; }
-            if (size === 'A1') { scale = 9.0; margin = "2cm"; }
+            if (size === 'A3') { scale = 4.0; margin = "1cm"; }
+            if (size === 'A2') { scale = 5.6; margin = "1.5cm"; }
+            if (size === 'A1') { scale = 8.0; margin = "2cm"; }
 
-            // Aplica a nova escala globalmente (aumenta mapa e fontes junto)
+            // Aplica a nova escala globalmente
             root.style.setProperty('--scale-factor', scale + 'px');
             
-            // Atualiza a regra de impressão do navegador (a maioria dos navegadores obedece)
+            // Atualiza a regra de impressão do navegador
             printStyle.innerHTML = `@media print { @page { size: ${size} landscape; margin: ${margin}; } }`;
         }
-        
-        // Inicializa a data no load
-        dateSpan.innerText = today.toLocaleDateString('pt-BR');
     </script>
 </body>
 </html>
