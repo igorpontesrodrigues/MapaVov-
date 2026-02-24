@@ -14,23 +14,25 @@
     </style>
     <style>
         :root {
-            /* Ajustado de 3.2px para 2.8px para garantir que a Rua A e Rua G cabem na folha A4 */
+            /* Fator de escala dinâmico (A4 = 2.8px) */
             --scale-factor: 2.8px; 
+            --font-multiplier: 1; /* Multiplicador de tamanho da fonte definido pelo utilizador */
+            --font-weight-main: bold; /* Controle do negrito */
+            
             --street-color: #cf704c; /* Cor de telha/barro */
             --lot-border: #808080; /* Cercas cinzas */
             --lot-bg: #8ebf6a; /* Cor de grama */
             --text-color: #333;
             --street-text: #ffffff; /* Texto branco para ler melhor no barro */
             
-            /* Variável para a fonte da planta */
             --main-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
-            /* Fontes dinâmicas: crescem proporcionalmente ao tamanho da folha */
-            --font-title: calc(8 * var(--scale-factor));
-            --font-street: calc(3.8 * var(--scale-factor));
-            --font-lot: calc(3.5 * var(--scale-factor));
-            --font-dim: calc(2.2 * var(--scale-factor));
-            --font-tech: calc(3.2 * var(--scale-factor));
+            /* Fontes dinâmicas: crescem com a folha e com o multiplicador do utilizador */
+            --font-title: calc(8 * var(--scale-factor) * var(--font-multiplier));
+            --font-street: calc(3.8 * var(--scale-factor) * var(--font-multiplier));
+            --font-lot: calc(3.5 * var(--scale-factor) * var(--font-multiplier));
+            --font-dim: calc(2.2 * var(--scale-factor) * var(--font-multiplier));
+            --font-tech: calc(3.2 * var(--scale-factor) * var(--font-multiplier));
         }
 
         body.bw-mode {
@@ -40,12 +42,16 @@
             --street-text: #000000;
         }
 
+        body.normal-weight-mode {
+            --font-weight-main: normal;
+        }
+
         * {
             box-sizing: border-box;
         }
 
         body {
-            font-family: var(--main-font); /* Agora usa a variável para permitir alterações */
+            font-family: var(--main-font);
             background-color: #eef2f5;
             margin: 0;
             padding: 20px;
@@ -53,7 +59,11 @@
             flex-direction: column;
             align-items: center;
             color: var(--text-color);
-            transition: font-family 0.3s ease;
+        }
+
+        /* Aplica o negrito variável aos elementos de texto cruciais */
+        b, strong, .road-horizontal, .road-vertical, .dimensions {
+            font-weight: var(--font-weight-main);
         }
 
         /* --- UI Controls (Não impresso) --- */
@@ -65,7 +75,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             text-align: center;
             width: 100%;
-            max-width: 900px;
+            max-width: 950px;
             border-left: 5px solid #2c3e50;
         }
 
@@ -88,20 +98,20 @@
         .instructions {
             font-size: 0.9em;
             color: #666;
-            margin-top: 8px;
+            margin-top: 12px;
         }
 
         .control-group {
             display: flex;
             justify-content: center;
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 10px;
             align-items: center;
             flex-wrap: wrap;
         }
 
-        select, .btn-secondary {
-            padding: 10px 12px;
+        select, .btn-secondary, input[type="range"] {
+            padding: 8px 12px;
             font-size: 14px;
             border-radius: 6px;
             border: 1px solid #ccc;
@@ -117,15 +127,26 @@
 
         .btn-secondary:hover { background-color: #dfe4ea; }
 
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 5px 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
         /* --- Main Map Container --- */
         .map-wrapper {
             background-color: white;
-            padding: 30px; /* Margem interna do papel */
+            padding: 30px;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
             display: inline-flex;
             flex-direction: column;
             align-items: center;
-            /* Garante que o container não encolhe abaixo do tamanho gerado pelo CSS Grid */
             min-width: min-content; 
         }
 
@@ -140,7 +161,6 @@
 
         h1 { margin: 0; font-size: var(--font-title); text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Norte Geográfico (Simples) */
         .north-arrow {
             position: absolute;
             right: 20px;
@@ -156,18 +176,17 @@
         .subdivision-layout {
             display: flex;
             flex-direction: column;
-            border: 2px solid var(--lot-border); /* Limite do terreno com cerca cinza */
+            border: 2px solid var(--lot-border);
         }
 
         /* Ruas Horizontais */
         .road-horizontal {
             width: 100%;
             background-color: var(--street-color);
-            border: 2px solid var(--lot-border); /* Cerca cinza */
+            border: 2px solid var(--lot-border);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
             color: var(--street-text);
             text-transform: uppercase;
             letter-spacing: 1.5px;
@@ -178,7 +197,7 @@
         .road-top {
             height: calc(10 * var(--scale-factor)); 
             border-bottom: none;
-            border-top: none; /* Borda externa cuidada pelo container */
+            border-top: none; 
         }
 
         .road-bottom {
@@ -186,7 +205,7 @@
             border-top: none;
             border-bottom: none;
             background-color: var(--street-color); 
-            filter: brightness(0.9); /* Avenida levemente mais escura de forma automática */
+            filter: brightness(0.9); 
             font-size: calc(var(--font-street) * 1.2);
         }
 
@@ -200,8 +219,8 @@
         .road-vertical {
             width: calc(10 * var(--scale-factor));
             background-color: var(--street-color);
-            border-left: 2px solid var(--lot-border); /* Cerca cinza */
-            border-right: 2px solid var(--lot-border); /* Cerca cinza */
+            border-left: 2px solid var(--lot-border);
+            border-right: 2px solid var(--lot-border);
             writing-mode: vertical-rl;
             text-orientation: mixed;
             display: flex;
@@ -238,7 +257,7 @@
         }
 
         /* Bordas divisórias internas das quadras */
-        .block .lot:nth-child(odd) { border-right: 1px solid #666; } /* Divisa de fundos */
+        .block .lot:nth-child(odd) { border-right: 1px solid #666; } 
         .block .lot:nth-child(even) { border-left: 0; } 
 
         /* Editabilidade */
@@ -250,9 +269,8 @@
 
         .dimensions {
             font-size: var(--font-dim);
-            color: #222; /* Escurecido para melhor leitura */
+            color: #222; 
             margin-top: 1px;
-            font-weight: bold;
         }
 
         /* --- Carimbo Técnico (Novo) --- */
@@ -278,17 +296,16 @@
 
         .area-table { width: 100%; border-collapse: collapse; font-size: var(--font-tech); }
         .area-table td { border-bottom: 1px solid #eee; padding: 4px 0; }
-        .area-table td:last-child { text-align: right; font-weight: bold; }
+        .area-table td:last-child { text-align: right; font-weight: var(--font-weight-main); }
 
         /* --- PRINT STYLES --- */
         @media print {
-            /* @page margin rule is handled dynamically via #print-style */
             body {
                 background: white;
                 padding: 0;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
-                align-items: flex-start; /* Alinha ao topo esquerdo */
+                align-items: flex-start;
             }
 
             .controls { display: none !important; }
@@ -298,11 +315,9 @@
                 padding: 0;
                 border: none;
                 width: 100%;
-                /* Força a escala no modo de impressão caso o navegador tente redimensionar sozinho */
                 max-width: none;
             }
 
-            /* Forçar preto e branco nítido, exceto se cor for importante */
             h1, h4 { color: #000; }
             body.bw-mode .road-horizontal, body.bw-mode .road-vertical { background-color: #f0f0f0 !important; }
             body.bw-mode .road-horizontal, body.bw-mode .road-vertical { text-shadow: none; color: #000; }
@@ -316,22 +331,23 @@
     <div class="controls">
         <div class="control-group">
             <select id="paperSize" onchange="updateLayout()">
-                <option value="A4">Tamanho: Folha A4</option>
-                <option value="A3">Tamanho: Folha A3</option>
-                <option value="A2">Tamanho: Folha A2</option>
-                <option value="A1">Tamanho: Folha A1</option>
+                <option value="A4">Folha: A4</option>
+                <option value="A3">Folha: A3</option>
+                <option value="A2">Folha: A2</option>
+                <option value="A1">Folha: A1</option>
             </select>
-            <select id="fontFamily" onchange="updateFont()">
-                <option value="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif">Fonte: Segoe UI (Moderna)</option>
-                <option value="Arial, Helvetica, sans-serif">Fonte: Arial (Clássica)</option>
-                <option value="'Times New Roman', Times, serif">Fonte: Times New Roman (Formal)</option>
-                <option value="'Courier New', Courier, monospace">Fonte: Courier New (Técnica)</option>
-            </select>
-            <button class="btn-secondary" onclick="toggleColor()">🎨 Cores / Preto e Branco</button>
-            <button onclick="window.print()">🖨️ Imprimir Projeto</button>
+            
+            <div class="slider-container">
+                Letra:
+                <input type="range" id="fontMultiplier" min="0.6" max="1.5" step="0.1" value="1" onchange="updateFontSize()" oninput="updateFontSize()" title="Deslize para aumentar ou diminuir a letra">
+            </div>
+
+            <button class="btn-secondary" onclick="toggleBold()" title="Ativar/Desativar Negrito"><strong>B</strong> / Normal</button>
+            <button class="btn-secondary" onclick="toggleColor()">🎨 Cores / P&B</button>
+            <button onclick="window.print()">🖨️ Imprimir</button>
         </div>
         <div class="instructions">
-            💡 Dica: Agora a Rua A e a Rua G cabem perfeitamente na folha A4. Podes também alterar a fonte principal!
+            💡 Dica: Desliza o controlo "Letra" para ajustar o tamanho do texto aos teus gostos antes de imprimir. As escalas já estão perfeitamente ajustadas para cada tamanho de papel.
         </div>
     </div>
 
@@ -373,16 +389,16 @@
                 <!-- Rua 5 -->
                 <div class="road-vertical" contenteditable="true">Rua E</div>
 
-                <!-- Quadra 5 (Nova) -->
+                <!-- Quadra 5 -->
                 <div class="block" id="quadra5"></div>
 
-                <!-- Rua 6 (Nova) -->
+                <!-- Rua 6 -->
                 <div class="road-vertical" contenteditable="true">Rua F</div>
 
-                <!-- Quadra 6 (Nova) -->
+                <!-- Quadra 6 -->
                 <div class="block" id="quadra6"></div>
 
-                <!-- Rua 7 (Nova) -->
+                <!-- Rua 7 -->
                 <div class="road-vertical" contenteditable="true">Rua G</div>
             </div>
 
@@ -392,7 +408,6 @@
 
         <!-- Carimbo / Quadro Técnico -->
         <div class="technical-footer">
-            <!-- Coluna 1: Dados do Projeto -->
             <div class="tech-section" style="flex: 2;">
                 <h4>Quadro de Áreas</h4>
                 <table class="area-table">
@@ -403,38 +418,33 @@
                 </table>
             </div>
 
-            <!-- Coluna 2: Escala e Prancha -->
             <div class="tech-section" style="flex: 1; text-align: center; align-items: center;">
                 <h4>Identificação</h4>
-                <div style="margin-top: 10px; font-weight: bold; border: 2px solid #333; padding: 5px 15px; text-align: center; font-size: calc(var(--font-tech) * 1.5);" contenteditable="true">
-                    Prancha 01/01
+                <div style="margin-top: 10px; border: 2px solid #333; padding: 5px 15px; text-align: center; font-size: calc(var(--font-tech) * 1.5);" contenteditable="true">
+                    <strong>Prancha 01/01</strong>
                 </div>
-                <div style="margin-top: 15px; font-weight: bold;" contenteditable="true">Escala: <span id="escalaTexto">Indicativa</span></div>
-                <div style="margin-top: 5px;">Data: <span id="currentDate"></span></div>
+                <div style="margin-top: 15px;" contenteditable="true"><strong>Escala:</strong> <span id="escalaTexto">Indicativa</span></div>
+                <div style="margin-top: 5px;"><strong>Data:</strong> <span id="currentDate"></span></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Definir a data atual automaticamente
         const dateSpan = document.getElementById('currentDate');
         const today = new Date();
         const formattedDate = today.toLocaleDateString('pt-BR');
         dateSpan.innerText = formattedDate;
 
-        // Gerar Lotes
         function generateLots(containerId, startNum) {
             const container = document.getElementById(containerId);
             const offset = 10; 
 
             for (let i = 0; i < 10; i++) {
-                // Lote Esquerdo
                 const lotLeft = document.createElement('div');
                 lotLeft.className = 'lot';
                 lotLeft.innerHTML = `<b contenteditable="true">L${startNum + i}</b><span class="dimensions">25x10</span>`;
                 container.appendChild(lotLeft);
 
-                // Lote Direito
                 const lotRight = document.createElement('div');
                 lotRight.className = 'lot';
                 lotRight.innerHTML = `<b contenteditable="true">L${startNum + offset + i}</b><span class="dimensions">25x10</span>`;
@@ -449,14 +459,19 @@
         generateLots('quadra5', 81);
         generateLots('quadra6', 101);
 
-        // Funções de Interação
+        // --- Funções de UI / Ajustes ---
+        
         function toggleColor() {
             document.body.classList.toggle('bw-mode');
         }
 
-        function updateFont() {
-            const font = document.getElementById('fontFamily').value;
-            document.documentElement.style.setProperty('--main-font', font);
+        function toggleBold() {
+            document.body.classList.toggle('normal-weight-mode');
+        }
+
+        function updateFontSize() {
+            const multiplier = document.getElementById('fontMultiplier').value;
+            document.documentElement.style.setProperty('--font-multiplier', multiplier);
         }
 
         function updateLayout() {
@@ -464,19 +479,15 @@
             const root = document.documentElement;
             const printStyle = document.getElementById('print-style');
             
-            // Fatores de escala ajustados. 
-            // O A4 foi reduzido (de 3.2 para 2.8) para garantir a visibilidade das margens laterais (Rua A e G).
+            // Cálculos precisos testados para não cortar bordas (Ruas A e G)
             let scale = 2.8; 
             let margin = "0.8cm";
             
-            if (size === 'A3') { scale = 4.0; margin = "1cm"; }
-            if (size === 'A2') { scale = 5.6; margin = "1.5cm"; }
-            if (size === 'A1') { scale = 8.0; margin = "2cm"; }
+            if (size === 'A3') { scale = 3.9; margin = "1cm"; } // A3 é ~1.41x maior que A4
+            if (size === 'A2') { scale = 5.5; margin = "1.5cm"; } // A2 é ~1.41x maior que A3
+            if (size === 'A1') { scale = 7.8; margin = "2cm"; } // A1 é ~1.41x maior que A2
 
-            // Aplica a nova escala globalmente
             root.style.setProperty('--scale-factor', scale + 'px');
-            
-            // Atualiza a regra de impressão do navegador
             printStyle.innerHTML = `@media print { @page { size: ${size} landscape; margin: ${margin}; } }`;
         }
     </script>
