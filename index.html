@@ -3,13 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planta de Loteamento - 80 Lotes</title>
+    <title>Planta de Loteamento - 120 Lotes</title>
+    <style id="print-style">
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0.8cm;
+            }
+        }
+    </style>
     <style>
         :root {
-            --scale-factor: 3.5px; /* Define a escala base: 1 metro = 3.5 pixels */
-            --street-color: #f0f0f0;
-            --lot-border: #333;
-            --highlight-color: #e3f2fd;
+            /* Ajustado para 3.2px para preencher bem a folha A4 Paisagem com fontes maiores */
+            --scale-factor: 3.2px; 
+            --street-color: #cf704c; /* Cor de telha/barro */
+            --lot-border: #808080; /* Cercas cinzas */
+            --lot-bg: #8ebf6a; /* Cor de grama */
+            --text-color: #333;
+            --street-text: #ffffff; /* Texto branco para ler melhor no barro */
+            
+            /* Fontes dinâmicas: crescem proporcionalmente ao tamanho da folha */
+            --font-title: calc(8 * var(--scale-factor));
+            --font-street: calc(3.8 * var(--scale-factor));
+            --font-lot: calc(3.5 * var(--scale-factor));
+            --font-dim: calc(2.2 * var(--scale-factor));
+            --font-tech: calc(3.2 * var(--scale-factor));
+        }
+
+        body.bw-mode {
+            --street-color: #e0e0e0;
+            --lot-border: #000000;
+            --lot-bg: #ffffff;
+            --street-text: #000000;
         }
 
         * {
@@ -18,322 +43,386 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f9f9f9;
+            background-color: #eef2f5;
             margin: 0;
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            color: var(--text-color);
         }
 
-        /* --- UI Controls (Not printed) --- */
+        /* --- UI Controls (Não impresso) --- */
         .controls {
             margin-bottom: 20px;
             padding: 15px;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             text-align: center;
             width: 100%;
-            max-width: 800px;
+            max-width: 900px;
+            border-left: 5px solid #2c3e50;
         }
 
         button {
-            background-color: #2c3e50;
+            background-color: #2980b9;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 24px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
+            transition: background 0.2s;
         }
 
         button:hover {
-            background-color: #34495e;
+            background-color: #3498db;
         }
 
         .instructions {
             font-size: 0.9em;
             color: #666;
-            margin-top: 5px;
+            margin-top: 8px;
         }
 
+        .control-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select, .btn-secondary {
+            padding: 10px 15px;
+            font-size: 15px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background-color: #f1f2f6;
+            color: #2f3542;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover { background-color: #dfe4ea; }
+
         /* --- Main Map Container --- */
-        .map-container {
+        .map-wrapper {
             background-color: white;
-            padding: 20px;
-            border: 1px solid #ddd;
-            box-shadow: 0 0 15px rgba(0,0,0,0.05);
-            /* Dimensions calculation: 
-               Width = 5 streets (10m each) + 4 blocks (50m each) = 50 + 200 = 250m width
-               Height = Top street (10m) + Block length (100m) + Bottom Ave (20m) = 130m height 
-            */
-            display: inline-block;
+            padding: 30px; /* Margem interna do papel */
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .header-info {
             text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+            border-bottom: 3px double #333;
+            padding-bottom: 15px;
+            position: relative;
         }
 
-        h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
-        .subtitle { color: #555; }
+        h1 { margin: 0; font-size: var(--font-title); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Norte Geográfico (Simples) */
+        .north-arrow {
+            position: absolute;
+            right: 20px;
+            top: 0;
+            font-size: 40px;
+            line-height: 1;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        .north-arrow span { font-size: 12px; display: block; text-align: center; margin-top: -5px;}
 
         /* --- The Grid Layout --- */
         .subdivision-layout {
             display: flex;
             flex-direction: column;
+            border: 2px solid var(--lot-border); /* Limite do terreno com cerca cinza */
         }
 
-        /* Horizontal Streets (Top and Bottom) */
+        /* Ruas Horizontais */
         .road-horizontal {
             width: 100%;
             background-color: var(--street-color);
-            border: 1px dashed #ccc;
+            border: 2px solid var(--lot-border); /* Cerca cinza */
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            color: #555;
+            color: var(--street-text);
             text-transform: uppercase;
-            letter-spacing: 2px;
-            font-size: 12px;
+            letter-spacing: 1.5px;
+            font-size: var(--font-street);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
         }
 
         .road-top {
-            height: calc(10 * var(--scale-factor)); /* 10m */
-            margin-bottom: 0;
+            height: calc(10 * var(--scale-factor)); 
             border-bottom: none;
+            border-top: none; /* Borda externa cuidada pelo container */
         }
 
         .road-bottom {
-            height: calc(20 * var(--scale-factor)); /* 20m Avenue */
-            margin-top: 0;
+            height: calc(20 * var(--scale-factor)); 
             border-top: none;
-            background-color: #e8e8e8; /* Slightly darker to distinguish avenue */
-            font-size: 14px;
+            border-bottom: none;
+            background-color: var(--street-color); 
+            filter: brightness(0.9); /* Avenida levemente mais escura de forma automática */
+            font-size: calc(var(--font-street) * 1.2);
         }
 
-        /* The Main Body (Vertical Streets + Blocks) */
+        /* Linha Principal (Ruas Verticais + Quadras) */
         .blocks-row {
             display: flex;
             flex-direction: row;
         }
 
-        /* Vertical Streets (10m) */
+        /* Ruas Verticais */
         .road-vertical {
-            width: calc(10 * var(--scale-factor)); /* 10m width */
+            width: calc(10 * var(--scale-factor));
             background-color: var(--street-color);
-            border-left: 1px dashed #ccc;
-            border-right: 1px dashed #ccc;
+            border-left: 2px solid var(--lot-border); /* Cerca cinza */
+            border-right: 2px solid var(--lot-border); /* Cerca cinza */
             writing-mode: vertical-rl;
             text-orientation: mixed;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
-            color: #666;
+            font-size: var(--font-street);
+            color: var(--street-text);
             text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
         }
 
-        /* The Blocks (Quadras) */
-        /* Each block is 50m wide (25m lot + 25m lot back-to-back) */
+        /* As Quadras */
         .block {
             width: calc(50 * var(--scale-factor)); 
             display: grid;
-            grid-template-columns: 1fr 1fr; /* Two columns of lots back-to-back */
-            grid-template-rows: repeat(10, 1fr); /* 10 rows of lots */
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: repeat(10, 1fr);
+            border-top: 2px solid var(--lot-border);
+            border-bottom: 2px solid var(--lot-border);
+            background-color: #fff;
         }
 
-        /* Individual Lot (25m deep x 10m wide) 
-           Note: In this visual orientation, 'width' is the depth (25m) and 'height' is the frontage (10m)
-           because they are stacked vertically.
-        */
         .lot {
-            height: calc(10 * var(--scale-factor)); /* 10m frontage */
-            border: 1px solid var(--lot-border);
+            height: calc(10 * var(--scale-factor));
+            border: 0.5px solid var(--lot-border);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-size: 9px;
+            font-size: var(--font-lot);
             position: relative;
-            background: white;
+            background: var(--lot-bg);
+            transition: background 0.3s;
         }
 
-        /* Adjust borders for back-to-back effect */
-        .block .lot:nth-child(odd) {
-            /* Left side lots */
-            border-right: 1px solid #aaa; 
-        }
-        .block .lot:nth-child(even) {
-            /* Right side lots */
-            border-left: 1px solid #aaa;
-        }
+        /* Bordas divisórias internas das quadras */
+        .block .lot:nth-child(odd) { border-right: 1px solid #666; } /* Divisa de fundos */
+        .block .lot:nth-child(even) { border-left: 0; } 
 
-        /* Editable text styling */
+        /* Editabilidade */
         [contenteditable="true"]:hover {
             background-color: #fff9c4;
             cursor: text;
-            outline: 1px dashed #999;
+            outline: 1px dotted #999;
         }
 
         .dimensions {
-            font-size: 7px;
-            color: #888;
-            margin-top: 2px;
+            font-size: var(--font-dim);
+            color: #222; /* Escurecido para melhor leitura */
+            margin-top: 1px;
+            font-weight: bold;
         }
 
-        /* --- Compass / Scale (Optional) --- */
-        .footer-legend {
-            margin-top: 10px;
+        /* --- Carimbo Técnico (Novo) --- */
+        .technical-footer {
+            margin-top: 20px;
+            width: 100%;
+            border: 2px solid #000;
             display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            color: #444;
+            flex-wrap: wrap;
+            font-size: var(--font-tech);
         }
+
+        .tech-section {
+            padding: 10px;
+            border-right: 1px solid #000;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .tech-section:last-child { border-right: none; }
+        .tech-section h4 { margin: 0 0 8px 0; font-size: calc(var(--font-tech) * 1.2); text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 4px;}
+
+        .area-table { width: 100%; border-collapse: collapse; font-size: var(--font-tech); }
+        .area-table td { border-bottom: 1px solid #eee; padding: 4px 0; }
+        .area-table td:last-child { text-align: right; font-weight: bold; }
 
         /* --- PRINT STYLES --- */
         @media print {
-            @page {
-                size: landscape;
-                margin: 0.5cm;
-            }
-
+            /* @page margin rule is handled dynamically via #print-style */
             body {
                 background: white;
                 padding: 0;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                align-items: flex-start; /* Alinha ao topo esquerdo */
             }
 
-            .controls {
-                display: none !important;
-            }
+            .controls { display: none !important; }
 
-            .map-container {
-                border: none;
+            .map-wrapper {
                 box-shadow: none;
+                padding: 0;
+                border: none;
                 width: 100%;
-                max-width: none;
-                transform: scale(0.95); /* Ensure it fits margins */
-                transform-origin: top left;
             }
 
-            /* Remove edit hints */
-            [contenteditable="true"]:hover {
-                background-color: transparent;
-                outline: none;
-            }
-
-            /* Make borders crisper for print */
-            .lot, .block, .road-horizontal, .road-vertical {
-                border-color: black;
-                color: black;
-            }
+            /* Forçar preto e branco nítido, exceto se cor for importante */
+            h1, h4 { color: #000; }
+            body.bw-mode .road-horizontal, body.bw-mode .road-vertical { background-color: #f0f0f0 !important; }
+            body.bw-mode .road-horizontal, body.bw-mode .road-vertical { text-shadow: none; color: #000; }
             
-            .road-horizontal, .road-vertical {
-                background-color: #f5f5f5 !important; /* Save ink but keep definition */
-            }
+            [contenteditable="true"]:hover { background: none; outline: none; }
         }
     </style>
 </head>
 <body>
 
     <div class="controls">
-        <button onclick="window.print()">🖨️ Imprimir Planta</button>
+        <div class="control-group">
+            <select id="paperSize" onchange="updateLayout()">
+                <option value="A4">Folha A4 (Padrão)</option>
+                <option value="A3">Folha A3 (Maior)</option>
+                <option value="A2">Folha A2 (Poster)</option>
+                <option value="A1">Folha A1 (Planta Grande)</option>
+            </select>
+            <button class="btn-secondary" onclick="toggleColor()">🎨 Cores / Preto e Branco</button>
+            <button onclick="window.print()">🖨️ Imprimir Projeto</button>
+        </div>
         <div class="instructions">
-            💡 Dica: Clica em qualquer texto no mapa (títulos, nomes de ruas, números) para editar antes de imprimir.
-            Use a orientação <strong>Paisagem</strong>.
+            💡 Dica: Escolha o tamanho da folha antes de imprimir. O mapa e as fontes escalam automaticamente!
         </div>
     </div>
 
-    <div class="map-container">
+    <div class="map-wrapper">
         <div class="header-info">
-            <h1 contenteditable="true">Projeto Residencial Vale do Sol</h1>
-            <div class="subtitle" contenteditable="true">Planta Geral - 80 Lotes (250m² cada)</div>
+            <h1 contenteditable="true">Projeto de Loteamento</h1>
+            
+            <div class="north-arrow">
+                N
+                <span>⬆</span>
+            </div>
         </div>
 
         <div class="subdivision-layout">
-            <!-- Rua Superior (10m) -->
-            <div class="road-horizontal road-top" contenteditable="true">Rua do Norte (10m)</div>
+            <!-- Rua Superior -->
+            <div class="road-horizontal road-top" contenteditable="true">Rua Norte (10.00m)</div>
 
-            <!-- Main Row: Street | Block | Street | Block... -->
             <div class="blocks-row">
-                
                 <!-- Rua 1 -->
-                <div class="road-vertical" contenteditable="true">Rua A (10m)</div>
-
-                <!-- Quadra 1 (Lotes 1-20) -->
-                <div class="block" id="quadra1">
-                    <!-- Gerado via JS para não poluir o HTML -->
-                </div>
+                <div class="road-vertical" contenteditable="true">Rua A</div>
+                <!-- Quadra 1 -->
+                <div class="block" id="quadra1"></div>
 
                 <!-- Rua 2 -->
-                <div class="road-vertical" contenteditable="true">Rua B (10m)</div>
-
-                <!-- Quadra 2 (Lotes 21-40) -->
+                <div class="road-vertical" contenteditable="true">Rua B</div>
+                <!-- Quadra 2 -->
                 <div class="block" id="quadra2"></div>
 
                 <!-- Rua 3 -->
-                <div class="road-vertical" contenteditable="true">Rua C (10m)</div>
-
-                <!-- Quadra 3 (Lotes 41-60) -->
+                <div class="road-vertical" contenteditable="true">Rua C</div>
+                <!-- Quadra 3 -->
                 <div class="block" id="quadra3"></div>
 
                 <!-- Rua 4 -->
-                <div class="road-vertical" contenteditable="true">Rua D (10m)</div>
-
-                <!-- Quadra 4 (Lotes 61-80) -->
+                <div class="road-vertical" contenteditable="true">Rua D</div>
+                <!-- Quadra 4 -->
                 <div class="block" id="quadra4"></div>
 
                 <!-- Rua 5 -->
-                <div class="road-vertical" contenteditable="true">Rua E (10m)</div>
+                <div class="road-vertical" contenteditable="true">Rua E</div>
 
+                <!-- Quadra 5 (Nova) -->
+                <div class="block" id="quadra5"></div>
+
+                <!-- Rua 6 (Nova) -->
+                <div class="road-vertical" contenteditable="true">Rua F</div>
+
+                <!-- Quadra 6 (Nova) -->
+                <div class="block" id="quadra6"></div>
+
+                <!-- Rua 7 (Nova) -->
+                <div class="road-vertical" contenteditable="true">Rua G</div>
             </div>
 
-            <!-- Avenida Inferior (20m) -->
-            <div class="road-horizontal road-bottom" contenteditable="true">Avenida Principal (20m)</div>
+            <!-- Avenida Inferior -->
+            <div class="road-horizontal road-bottom" contenteditable="true">Avenida Principal (20.00m)</div>
         </div>
 
-        <div class="footer-legend">
-            <span contenteditable="true">Escala: Sem escala definida (Esquemático)</span>
-            <span contenteditable="true">Total: 80 Unidades</span>
-            <span contenteditable="true">Data: 2023</span>
+        <!-- Carimbo / Quadro Técnico -->
+        <div class="technical-footer">
+            <!-- Coluna 1: Dados do Projeto -->
+            <div class="tech-section" style="flex: 2;">
+                <h4>Quadro de Áreas</h4>
+                <table class="area-table">
+                    <tr><td>Área dos Lotes (120 un):</td><td>30,000.00 m²</td></tr>
+                    <tr><td>Área do Sistema Viário:</td><td>18,100.00 m²</td></tr>
+                    <tr><td>Área Verde / Institucional:</td><td contenteditable="true">0.00 m²</td></tr>
+                    <tr style="border-top: 1px solid #000;"><td><strong>ÁREA TOTAL DA GLEBA:</strong></td><td><strong>48,100.00 m²</strong></td></tr>
+                </table>
+            </div>
+
+            <!-- Coluna 2: Escala e Prancha -->
+            <div class="tech-section" style="flex: 1; text-align: center; align-items: center;">
+                <h4>Identificação</h4>
+                <div style="margin-top: 10px; font-weight: bold; border: 2px solid #333; padding: 5px 15px; text-align: center; font-size: calc(var(--font-tech) * 1.5);" contenteditable="true">
+                    Prancha 01/01
+                </div>
+                <div style="margin-top: 15px; font-weight: bold;" contenteditable="true">Escala: <span id="escalaTexto">Indicativa</span></div>
+                <div style="margin-top: 5px;">Data: <span id="currentDate"></span></div>
+            </div>
         </div>
     </div>
 
     <script>
-        // Função para gerar os lotes dinamicamente e poupar código manual
-        function generateLots(containerId, startNum, endNum) {
+        // Definir a data atual automaticamente
+        const dateSpan = document.getElementById('currentDate');
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString('pt-BR');
+        // Se a data do sistema for muito diferente da query do usuario, usamos a data real
+        // Mas como pediste a data do dia, uso JS dinâmico:
+        dateSpan.innerText = formattedDate;
+
+        // Gerar Lotes
+        function generateLots(containerId, startNum) {
             const container = document.getElementById(containerId);
-            const totalLots = endNum - startNum + 1;
-            
-            // Vamos criar os lotes em pares (esquerdo/direito) descendo
-            // Lógica: 10 linhas.
-            // Linha 1: Lote Esq (start), Lote Dir (start + 10) ??
-            // Geralmente numeração de loteamento segue sentido horário ou sequencial.
-            // Vamos fazer sequencial simples: Esquerda desce, Direita desce.
-            
-            // Coluna Esquerda: startNum até startNum + 9
-            // Coluna Direita: startNum + 10 até endNum
-            
-            // Para renderizar corretamente no Grid (col1, col2), precisamos iterar linha a linha
-            const offset = 10; // Metade da quadra
+            const offset = 10; 
 
             for (let i = 0; i < 10; i++) {
-                // Lote Esquerdo (Face Rua Esquerda)
+                // Lote Esquerdo
                 const lotLeft = document.createElement('div');
                 lotLeft.className = 'lot';
                 lotLeft.innerHTML = `<b contenteditable="true">L${startNum + i}</b><span class="dimensions">25x10</span>`;
                 container.appendChild(lotLeft);
 
-                // Lote Direito (Face Rua Direita)
+                // Lote Direito
                 const lotRight = document.createElement('div');
                 lotRight.className = 'lot';
                 lotRight.innerHTML = `<b contenteditable="true">L${startNum + offset + i}</b><span class="dimensions">25x10</span>`;
@@ -341,19 +430,40 @@
             }
         }
 
-        // Gerar as 4 Quadras
-        // Quadra 1: 1 a 20
-        generateLots('quadra1', 1, 20);
+        generateLots('quadra1', 1);
+        generateLots('quadra2', 21);
+        generateLots('quadra3', 41);
+        generateLots('quadra4', 61);
+        generateLots('quadra5', 81);
+        generateLots('quadra6', 101);
+
+        // Funções de Interação (Novas)
+        function toggleColor() {
+            document.body.classList.toggle('bw-mode');
+        }
+
+        function updateLayout() {
+            const size = document.getElementById('paperSize').value;
+            const root = document.documentElement;
+            const printStyle = document.getElementById('print-style');
+            
+            // Fatores de escala ajustados para cada tamanho de papel para aproveitar a largura
+            let scale = 3.2; // A4
+            let margin = "0.8cm";
+            
+            if (size === 'A3') { scale = 4.5; margin = "1cm"; }
+            if (size === 'A2') { scale = 6.4; margin = "1.5cm"; }
+            if (size === 'A1') { scale = 9.0; margin = "2cm"; }
+
+            // Aplica a nova escala globalmente (aumenta mapa e fontes junto)
+            root.style.setProperty('--scale-factor', scale + 'px');
+            
+            // Atualiza a regra de impressão do navegador (a maioria dos navegadores obedece)
+            printStyle.innerHTML = `@media print { @page { size: ${size} landscape; margin: ${margin}; } }`;
+        }
         
-        // Quadra 2: 21 a 40
-        generateLots('quadra2', 21, 40);
-
-        // Quadra 3: 41 a 60
-        generateLots('quadra3', 41, 60);
-
-        // Quadra 4: 61 a 80
-        generateLots('quadra4', 61, 80);
-
+        // Inicializa a data no load
+        dateSpan.innerText = today.toLocaleDateString('pt-BR');
     </script>
 </body>
 </html>
