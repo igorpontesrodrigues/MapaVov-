@@ -16,8 +16,6 @@
         :root {
             /* Fator de escala dinâmico (A4 = 2.8px) */
             --scale-factor: 2.8px; 
-            --font-multiplier: 1; /* Multiplicador de tamanho da fonte definido pelo utilizador */
-            --font-weight-main: bold; /* Controle do negrito */
             
             --street-color: #cf704c; /* Cor de telha/barro */
             --lot-border: #808080; /* Cercas cinzas */
@@ -27,12 +25,13 @@
             
             --main-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
-            /* Fontes dinâmicas: crescem com a folha e com o multiplicador do utilizador */
-            --font-title: calc(8 * var(--scale-factor) * var(--font-multiplier));
-            --font-street: calc(3.8 * var(--scale-factor) * var(--font-multiplier));
-            --font-lot: calc(3.5 * var(--scale-factor) * var(--font-multiplier));
-            --font-dim: calc(2.2 * var(--scale-factor) * var(--font-multiplier));
-            --font-tech: calc(3.2 * var(--scale-factor) * var(--font-multiplier));
+            /* Fontes dinâmicas: crescem com a folha */
+            --font-title: calc(8 * var(--scale-factor));
+            /* Textos da planta aumentados substancialmente */
+            --font-street: calc(5.0 * var(--scale-factor)); /* Aumentado de 3.8 para 5.0 */
+            --font-lot: calc(4.2 * var(--scale-factor));    /* Ajustado para não sair da caixa */
+            --font-dim: calc(2.8 * var(--scale-factor));    /* Ajustado para não sair da caixa */
+            --font-tech: calc(3.5 * var(--scale-factor));   /* Aumentado de 3.2 para 3.5 */
         }
 
         body.bw-mode {
@@ -40,10 +39,6 @@
             --lot-border: #000000;
             --lot-bg: #ffffff;
             --street-text: #000000;
-        }
-
-        body.normal-weight-mode {
-            --font-weight-main: normal;
         }
 
         * {
@@ -61,9 +56,9 @@
             color: var(--text-color);
         }
 
-        /* Aplica o negrito variável aos elementos de texto cruciais */
+        /* Aplica o negrito aos elementos de texto cruciais */
         b, strong, .road-horizontal, .road-vertical, .dimensions {
-            font-weight: var(--font-weight-main);
+            font-weight: bold;
         }
 
         /* --- UI Controls (Não impresso) --- */
@@ -110,7 +105,7 @@
             flex-wrap: wrap;
         }
 
-        select, .btn-secondary, input[type="range"] {
+        select, .btn-secondary {
             padding: 8px 12px;
             font-size: 14px;
             border-radius: 6px;
@@ -126,18 +121,6 @@
         }
 
         .btn-secondary:hover { background-color: #dfe4ea; }
-
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #f8f9fa;
-            padding: 5px 12px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            font-size: 14px;
-            font-weight: bold;
-        }
 
         /* --- Main Map Container --- */
         .map-wrapper {
@@ -254,6 +237,16 @@
             position: relative;
             background: var(--lot-bg);
             transition: background 0.3s;
+            overflow: hidden; /* Impede que o texto saia da caixa */
+            padding: 0 1px;
+        }
+
+        .lot b {
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.1;
         }
 
         /* Bordas divisórias internas das quadras */
@@ -271,32 +264,28 @@
             font-size: var(--font-dim);
             color: #222; 
             margin-top: 1px;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1;
         }
 
-        /* --- Carimbo Técnico (Novo) --- */
-        .technical-footer {
-            margin-top: 20px;
-            width: 100%;
+        /* --- Carimbo Técnico (Compacto) --- */
+        .compact-footer {
+            margin-top: 12px;
+            width: 45%; /* Ocupa bem menos espaço na folha */
+            align-self: flex-end; /* Fica alinhado à direita debaixo do mapa */
             border: 2px solid #000;
-            display: flex;
-            flex-wrap: wrap;
-            font-size: var(--font-tech);
+            background: white;
+            padding: 8px 12px;
         }
-
-        .tech-section {
-            padding: 10px;
-            border-right: 1px solid #000;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .tech-section:last-child { border-right: none; }
-        .tech-section h4 { margin: 0 0 8px 0; font-size: calc(var(--font-tech) * 1.2); text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 4px;}
+        
+        .compact-footer h4 { margin: 0 0 6px 0; font-size: calc(var(--font-tech) * 1.1); text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 4px; text-align: center;}
 
         .area-table { width: 100%; border-collapse: collapse; font-size: var(--font-tech); }
         .area-table td { border-bottom: 1px solid #eee; padding: 4px 0; }
-        .area-table td:last-child { text-align: right; font-weight: var(--font-weight-main); }
+        .area-table td:last-child { text-align: right; font-weight: bold; }
 
         /* --- PRINT STYLES --- */
         @media print {
@@ -337,17 +326,11 @@
                 <option value="A1">Folha: A1</option>
             </select>
             
-            <div class="slider-container">
-                Letra:
-                <input type="range" id="fontMultiplier" min="0.6" max="1.5" step="0.1" value="1" onchange="updateFontSize()" oninput="updateFontSize()" title="Deslize para aumentar ou diminuir a letra">
-            </div>
-
-            <button class="btn-secondary" onclick="toggleBold()" title="Ativar/Desativar Negrito"><strong>B</strong> / Normal</button>
             <button class="btn-secondary" onclick="toggleColor()">🎨 Cores / P&B</button>
             <button onclick="window.print()">🖨️ Imprimir</button>
         </div>
         <div class="instructions">
-            💡 Dica: Desliza o controlo "Letra" para ajustar o tamanho do texto aos teus gostos antes de imprimir. As escalas já estão perfeitamente ajustadas para cada tamanho de papel.
+            💡 Dica: As escalas já estão perfeitamente ajustadas para cada tamanho de papel.
         </div>
     </div>
 
@@ -406,35 +389,19 @@
             <div class="road-horizontal road-bottom" contenteditable="true">Avenida Principal (20.00m)</div>
         </div>
 
-        <!-- Carimbo / Quadro Técnico -->
-        <div class="technical-footer">
-            <div class="tech-section" style="flex: 2;">
-                <h4>Quadro de Áreas</h4>
-                <table class="area-table">
-                    <tr><td>Área dos Lotes (120 un):</td><td>30,000.00 m²</td></tr>
-                    <tr><td>Área do Sistema Viário:</td><td>18,100.00 m²</td></tr>
-                    <tr><td>Área Verde / Institucional:</td><td contenteditable="true">0.00 m²</td></tr>
-                    <tr style="border-top: 1px solid #000;"><td><strong>ÁREA TOTAL DA GLEBA:</strong></td><td><strong>48,100.00 m²</strong></td></tr>
-                </table>
-            </div>
-
-            <div class="tech-section" style="flex: 1; text-align: center; align-items: center;">
-                <h4>Identificação</h4>
-                <div style="margin-top: 10px; border: 2px solid #333; padding: 5px 15px; text-align: center; font-size: calc(var(--font-tech) * 1.5);" contenteditable="true">
-                    <strong>Prancha 01/01</strong>
-                </div>
-                <div style="margin-top: 15px;" contenteditable="true"><strong>Escala:</strong> <span id="escalaTexto">Indicativa</span></div>
-                <div style="margin-top: 5px;"><strong>Data:</strong> <span id="currentDate"></span></div>
-            </div>
+        <!-- Quadro Técnico Compacto -->
+        <div class="compact-footer">
+            <h4>Quadro de Áreas</h4>
+            <table class="area-table">
+                <tr><td>Área dos Lotes (120 un):</td><td>30,000.00 m²</td></tr>
+                <tr><td>Área do Sistema Viário:</td><td>18,100.00 m²</td></tr>
+                <tr><td>Área Verde / Institucional:</td><td contenteditable="true">0.00 m²</td></tr>
+                <tr style="border-top: 1px solid #000;"><td><strong>ÁREA TOTAL DA GLEBA:</strong></td><td><strong>48,100.00 m²</strong></td></tr>
+            </table>
         </div>
     </div>
 
     <script>
-        const dateSpan = document.getElementById('currentDate');
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString('pt-BR');
-        dateSpan.innerText = formattedDate;
-
         function generateLots(containerId, startNum) {
             const container = document.getElementById(containerId);
             const offset = 10; 
@@ -463,15 +430,6 @@
         
         function toggleColor() {
             document.body.classList.toggle('bw-mode');
-        }
-
-        function toggleBold() {
-            document.body.classList.toggle('normal-weight-mode');
-        }
-
-        function updateFontSize() {
-            const multiplier = document.getElementById('fontMultiplier').value;
-            document.documentElement.style.setProperty('--font-multiplier', multiplier);
         }
 
         function updateLayout() {
