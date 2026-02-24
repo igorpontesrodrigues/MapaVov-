@@ -271,20 +271,50 @@
             line-height: 1;
         }
 
-        /* --- Carimbo Técnico (Compacto) --- */
-        .compact-footer {
-            margin-top: 12px;
-            width: 45%; /* Ocupa bem menos espaço na folha */
-            align-self: flex-end; /* Fica alinhado à direita debaixo do mapa */
+        /* --- Rodapé (Novo Layout) --- */
+        .footer-container {
+            margin-top: 15px;
+            width: 100%;
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+            justify-content: space-between;
+        }
+
+        .description-box {
+            flex: 1.5;
             border: 2px solid #000;
             background: white;
-            padding: 8px 12px;
+            padding: 15px 20px;
+            font-size: calc(var(--font-tech) * 1.6); /* Aumentado drasticamente para leitura fácil */
+            line-height: 1.55; /* Espaçamento entre linhas aumentado para descansar a vista */
+            text-align: justify;
+        }
+
+        .description-box h4 {
+            margin: 0 0 10px 0; 
+            font-size: calc(var(--font-tech) * 1.8); /* Título muito maior */
+            text-transform: uppercase; 
+            border-bottom: 2px solid #ddd; 
+            padding-bottom: 6px; 
+            text-align: left;
+        }
+
+        .description-box p {
+            margin: 0;
+        }
+
+        .compact-footer {
+            flex: 1;
+            border: 2px solid #000;
+            background: white;
+            padding: 15px 20px;
         }
         
-        .compact-footer h4 { margin: 0 0 6px 0; font-size: calc(var(--font-tech) * 1.1); text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 4px; text-align: center;}
+        .compact-footer h4 { margin: 0 0 10px 0; font-size: calc(var(--font-tech) * 1.6); text-transform: uppercase; border-bottom: 2px solid #ddd; padding-bottom: 6px; text-align: center;}
 
-        .area-table { width: 100%; border-collapse: collapse; font-size: var(--font-tech); }
-        .area-table td { border-bottom: 1px solid #eee; padding: 4px 0; }
+        .area-table { width: 100%; border-collapse: collapse; font-size: calc(var(--font-tech) * 1.3); } /* Fonte da tabela também aumentada */
+        .area-table td { border-bottom: 1px solid #eee; padding: 6px 0; }
         .area-table td:last-child { text-align: right; font-weight: bold; }
 
         /* --- PRINT STYLES --- */
@@ -389,15 +419,22 @@
             <div class="road-horizontal road-bottom" contenteditable="true">Avenida Principal (20.00m)</div>
         </div>
 
-        <!-- Quadro Técnico Compacto -->
-        <div class="compact-footer">
-            <h4>Quadro de Áreas</h4>
-            <table class="area-table">
-                <tr><td>Área dos Lotes (120 un):</td><td>30,000.00 m²</td></tr>
-                <tr><td>Área do Sistema Viário:</td><td>18,100.00 m²</td></tr>
-                <tr><td>Área Verde / Institucional:</td><td contenteditable="true">0.00 m²</td></tr>
-                <tr style="border-top: 1px solid #000;"><td><strong>ÁREA TOTAL DA GLEBA:</strong></td><td><strong>48,100.00 m²</strong></td></tr>
-            </table>
+        <!-- Rodapé com Memorial e Quadro de Áreas -->
+        <div class="footer-container">
+            <div class="description-box" contenteditable="true">
+                <h4>Memorial Descritivo</h4>
+                <p>O presente projeto de loteamento é composto por <strong>120 lotes</strong> padronizados, cada um com dimensões de <strong>10m de testada por 25m de profundidade (250m² por unidade)</strong>. O sistema viário interior foi concebido de forma ortogonal e engloba <strong>7 vias transversais</strong> (Ruas A a G) e <strong>1 via de contorno</strong> (Rua Norte), todas desenhadas com 10 metros de largura. O acesso e distribuição principal são garantidos a Sul por uma ampla <strong>Avenida Principal de 20 metros</strong>. A totalidade da gleba abrange uma área de intervenção de <strong>48.100,00 m²</strong>.</p>
+            </div>
+
+            <div class="compact-footer">
+                <h4>Quadro de Áreas</h4>
+                <table class="area-table">
+                    <tr><td>Área dos Lotes (120 un):</td><td>30,000.00 m²</td></tr>
+                    <tr><td>Área do Sistema Viário:</td><td>18,100.00 m²</td></tr>
+                    <tr><td>Área Verde / Institucional:</td><td contenteditable="true">0.00 m²</td></tr>
+                    <tr style="border-top: 1px solid #000;"><td><strong>ÁREA TOTAL DA GLEBA:</strong></td><td><strong>48,100.00 m²</strong></td></tr>
+                </table>
+            </div>
         </div>
     </div>
 
